@@ -98,11 +98,10 @@ Three ingredients that mix, and "Empty the bottle" as the only removal (decision
   dark ones are low in contrast against the dark tile.
 - **The picture is one seam.** `IngredientPicture` is the only place a jar's
   picture is drawn; a plain colour swatch stands in for it until ticket 16.
-- **On a phone** the jars tighten (48 px tall, a 22 px swatch) so all nine stay
-  in view in the sheet's body at 390 by 844, with the shut message above them;
-  "In the bottle" and "Empty the bottle" sit below the fold, so the tab scrolls
-  inside the sheet like any other. At 375 by 667 the third row of jars needs a
-  short scroll inside the sheet.
+- **On a phone** the jars, rows and tab-row lock are laid out as in
+  [ADR 0112](0112-armoury-ingredient-pictures.md) "The phone layout"; the shut
+  message sits below the jars on a phone and above them on a desk, and the tab
+  scrolls inside the sheet like any other.
 - **Focus stays in the picker.** After "Empty the bottle" focus goes to the first
   jar. Focus scrolls the sheet into view only when no pointer made the click
   (`detail` 0, which is Enter, Space or a screen reader's click); a tap or a mouse

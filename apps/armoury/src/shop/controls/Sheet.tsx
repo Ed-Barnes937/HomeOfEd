@@ -18,6 +18,13 @@ export function Sheet({
   const groups = groupsOf(params)
   const [tab, setTab] = useState(() => groups[0]!.key)
   const group = groups.find((g) => g.key === tab) ?? groups[0]!
+  const lock = (
+    <LockButton
+      group={group}
+      locked={locked.includes(group.key)}
+      onToggle={() => onToggleLock(group.key)}
+    />
+  )
 
   return (
     <section className={styles.sheet} aria-label={copy.panelTitle}>
@@ -49,15 +56,7 @@ export function Sheet({
             </button>
           ))}
         </div>
-        {group.lockInTabRow && (
-          <div className={styles.tabRowLock}>
-            <LockButton
-              group={group}
-              locked={locked.includes(group.key)}
-              onToggle={() => onToggleLock(group.key)}
-            />
-          </div>
-        )}
+        {group.lockInTabRow && <div className={styles.tabRowLock}>{lock}</div>}
       </div>
       <div
         className={styles.body}
@@ -70,11 +69,7 @@ export function Sheet({
         ) : (
           <div className={styles.bodyHeader}>
             <span className={styles.summary}>{group.summary(params)}</span>
-            <LockButton
-              group={group}
-              locked={locked.includes(group.key)}
-              onToggle={() => onToggleLock(group.key)}
-            />
+            {lock}
           </div>
         )}
         <GroupControls

@@ -331,6 +331,26 @@ export class ApothecaryPom extends BenchPom {
     else expect(reason.y + reason.height).toBeLessThanOrEqual(first.y)
   }
 
+  /** The whole message lies inside the tab body (the window on a desk); polled, for the smooth scroll. */
+  async verifyMessageInView(message: string): Promise<void> {
+    await expect
+      .poll(async () => {
+        const tabpanel = this.page.getByRole('tabpanel')
+        const panel = (await tabpanel.count())
+          ? (await tabpanel.boundingBox())!
+          : { y: 0, height: this.page.viewportSize()!.height }
+        const reason = (await this.page
+          .locator('p:not([aria-live])', { hasText: message })
+          .boundingBox())!
+        return reason.y >= panel.y && reason.y + reason.height <= panel.y + panel.height
+      })
+      .toBe(true)
+  }
+
+  async pageScroll(): Promise<number> {
+    return this.page.evaluate(() => window.scrollY)
+  }
+
   /** Every jar, and "Empty the bottle" when it shows, is at least 44 px tall and wide. */
   async verifyHitTargetsAtLeast44(): Promise<void> {
     const targets = [

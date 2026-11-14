@@ -81,7 +81,8 @@ mixed message 22 px. On the Pours tab of the phone sheet:
 - The summary is not drawn but stays in the tab panel as visually hidden text, so a screen
   reader still reads it.
 - The reason the jars are shut sits below the jars instead of above them (desk keeps it above,
-  by CSS `order`). It is out of view at 390 x 844 until the sheet scrolls; the jars are still
+  by CSS `order`). It is out of view at 390 x 844 at rest, so a tap on a shut jar scrolls it into view
+  (nearest, smooth unless motion is reduced) while focus stays on the jar; the jars are still
   `aria-disabled` and described by it, and the stage line still says "Tap the bottle to mix it".
 - Rows are the 48 px picture, the label, and a 4 px gap between jars: 71 px each, equal.
 

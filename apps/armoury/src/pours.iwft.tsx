@@ -305,6 +305,14 @@ test('on a desk the pictures stay 64 px and the message stays above the jars', a
   await root.verifyMessageBelowJars(FULL_MESSAGE, false)
 })
 
+test('on a desk a tap on a shut jar does not move the page', async ({ mountApp }) => {
+  const { root } = await mountApp()
+  const before = await root.pageScroll()
+  await root.tapJar('Snailshine')
+  await root.verifyMessageInView(FULL_MESSAGE)
+  expect(await root.pageScroll()).toBe(before)
+})
+
 test('Try another leaves focus where the child put it', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.tryAnother()
@@ -350,6 +358,20 @@ for (const size of [
 
       await root.openTab('Bottle')
       await root.verifyLockInBody()
+    })
+
+    test('a tap on a shut jar brings the full message into view', async ({ mountApp }) => {
+      const { root } = await mountApp()
+      await root.tapJar('Snailshine')
+      await root.verifyMessageInView(FULL_MESSAGE)
+      await root.verifyFocused('Pour in Snailshine')
+    })
+
+    test('a tap on a shut jar brings the mixed message into view', async ({ mountApp, page }) => {
+      await ShopPom.openAt(page, MIXED_LINK)
+      const { root } = await mountApp()
+      await root.tapJar('Snailshine')
+      await root.verifyMessageInView(MIXED_MESSAGE)
     })
 
     test('a mixed bottle lays out the same, with its longer message', async ({
