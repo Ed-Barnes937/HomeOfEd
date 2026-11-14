@@ -14,9 +14,27 @@ const MIXED_MESSAGE = 'This potion is mixed. Empty the bottle to make a new one.
 /** A click's detail is 0 when no pointer made it: Enter, Space or a screen reader's click. */
 const isPointerlessClick = (event: MouseEvent) => event.detail === 0
 
-/** The one place an ingredient's picture is drawn, for the jars and the pours alike. */
-function IngredientPicture({ item }: { item: Ingredient }) {
+function Swatch({ item }: { item: Ingredient }) {
   return <span className={styles.swatch} style={{ background: item.colour }} aria-hidden="true" />
+}
+
+/** An ingredient's picture in its jar, or its swatch when the picture does not load. */
+function IngredientPicture({ item }: { item: Ingredient }) {
+  const [failed, setFailed] = useState(false)
+  return (
+    <span className={styles.picture}>
+      {failed ? (
+        <Swatch item={item} />
+      ) : (
+        <img
+          src={`/ingredients/${item.id}.webp`}
+          alt=""
+          draggable={false}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  )
 }
 
 export function PourPicker({ params, onChange }: { params: Params; onChange: OnChange }) {
@@ -91,7 +109,7 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
             </li>
           ) : (
             <li key={`${row}-${id}`} className={styles.row}>
-              <IngredientPicture item={ingredient(id)} />
+              <Swatch item={ingredient(id)} />
               <span className={styles.rowLabel}>{ingredient(id).label}</span>
             </li>
           ),
