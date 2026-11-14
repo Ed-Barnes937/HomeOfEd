@@ -2,6 +2,7 @@
 // millimetres, the axis z, the foot at z = 0. Three-free; only stage/ builds meshes from it.
 
 import type { MeshPart, Vec3 } from '../sword/sweep.ts'
+import type { ShapeId } from './bottles.ts'
 import type { PotionSpec } from './compile.ts'
 import { bottleProfile, type BottleProfile, type ProfilePoint, tagLoopZ } from './profile.ts'
 
@@ -30,8 +31,12 @@ const PAPER_GRID_MM = 2
  */
 const ROUND_SHARE = 0.6
 const ROUND_HEIGHT_SHARE = 0.32
-const BANNER_TURN = (120 * Math.PI) / 180
-const BANNER_HALF_HEIGHT = 9
+/**
+ * How far the banner wraps, its half height and how far below the widest band it sits. The round
+ * flask's middle pours fill its widest band, so its banner is smaller and sits a little lower.
+ */
+const BANNER = { turn: (120 * Math.PI) / 180, halfHeight: 9, dropMm: 0 }
+const ROUND_BANNER = { turn: (100 * Math.PI) / 180, halfHeight: 6, dropMm: 5 }
 const BANNER_NOTCH = 5
 const CARD_HALF_WIDTH = 13
 const CARD_HALF_HEIGHT = 9
@@ -308,17 +313,18 @@ function roundLabel(b: Builder, profile: BottleProfile): void {
   )
 }
 
-function bannerLabel(b: Builder, profile: BottleProfile): void {
+function bannerLabel(b: Builder, profile: BottleProfile, shape: ShapeId): void {
+  const { turn, halfHeight, dropMm } = shape === 'round' ? ROUND_BANNER : BANNER
   const surface = bodySurface(profile)
-  const s0 = surface.sOf(labelCentre(profile))
+  const s0 = surface.sOf(labelCentre(profile) - dropMm)
   const r0 = surface.at(s0).r
-  const half = (r0 * BANNER_TURN) / 2
+  const half = (r0 * turn) / 2
   sheet(
     b,
     paperPlace(surface, s0, () => r0),
-    (a, c) => [a * (half - BANNER_NOTCH * (1 - Math.abs(c))), c * BANNER_HALF_HEIGHT],
+    (a, c) => [a * (half - BANNER_NOTCH * (1 - Math.abs(c))), c * halfHeight],
     gridCount(2 * half),
-    gridCount(2 * BANNER_HALF_HEIGHT),
+    gridCount(2 * halfHeight),
     PAPER_BACK_MM,
     PAPER_FRONT_MM,
   )
@@ -604,7 +610,7 @@ function labelPart(spec: PotionSpec, profile: BottleProfile): MeshPart | null {
   if (spec.label === 'none') return null
   const b = new Builder()
   if (spec.label === 'round') roundLabel(b, profile)
-  else if (spec.label === 'banner') bannerLabel(b, profile)
+  else if (spec.label === 'banner') bannerLabel(b, profile, spec.shape)
   else tagLabel(b, profile)
   return b.part()
 }

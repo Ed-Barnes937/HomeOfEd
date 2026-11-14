@@ -9,7 +9,7 @@ import type { IngredientId } from './ingredients.ts'
 import type { LabelId, StopperId } from './potionSchema.ts'
 import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
-import { BASE_MM, bottleProfile, type BottleProfile, LIQUID_GAP_MM } from './profile.ts'
+import { BASE_MM, bandTops, bottleProfile, type BottleProfile, LIQUID_GAP_MM } from './profile.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
 const STOPPERS: StopperId[] = ['cork', 'glass']
@@ -229,11 +229,29 @@ describe('buildPotionMesh', () => {
   )
 
   it.each(CATALOGUE.filter((e) => e.spec.label === 'banner'))(
-    '$name: the banner wraps 120 degrees round the front, so both notched ends show',
-    ({ mesh }) => {
+    '$name: the banner wraps 120 degrees round the front, 100 on the round flask, so both notched ends show',
+    ({ spec, mesh }) => {
       const turns = sampled(mesh.label!, Infinity).map((p) => turnBetween(FRONT_ANGLE, angleOf(p)))
-      expect((Math.max(...turns) * 180) / Math.PI).toBeCloseTo(60, 0)
-      expect((Math.min(...turns) * 180) / Math.PI).toBeCloseTo(-60, 0)
+      const half = spec.shape === 'round' ? 50 : 60
+      expect((Math.max(...turns) * 180) / Math.PI).toBeCloseTo(half, 0)
+      expect((Math.min(...turns) * 180) / Math.PI).toBeCloseTo(-half, 0)
+    },
+  )
+
+  it.each(CATALOGUE.filter((e) => e.spec.label === 'banner' && e.spec.shape === 'round'))(
+    '$name: the banner leaves at least 40 percent of the middle of three pours showing from the front',
+    ({ spec, mesh, profile }) => {
+      const [bottom, middle] = bandTops(profile, spec.layers.length)
+      const label = sampled(mesh.label!, Infinity)
+      let band = 0
+      let hidden = 0
+      for (let z = bottom! + 0.125; z < middle!; z += 0.25) {
+        const r = profile.innerR(z)
+        band += 2 * r
+        const xs = label.filter(([, , lz]) => Math.abs(lz - z) <= 1.05).map(([x]) => x)
+        if (xs.length > 0) hidden += Math.min(r, Math.max(...xs)) - Math.max(-r, Math.min(...xs))
+      }
+      expect(1 - hidden / band).toBeGreaterThanOrEqual(0.4)
     },
   )
 
