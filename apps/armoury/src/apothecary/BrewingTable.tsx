@@ -51,8 +51,10 @@ export function BrewingTable({ view, item, reducedMotion, stageRef, onRename }: 
           <span ref={display.stageSlot} className={styles.stageSlot}>
             {Stage && (
               <StageBoundary>
-                <Stage ref={stageRef} params={params}
-                  name={item.name ?? view.item.name(params)}
+                <Stage
+                  ref={stageRef}
+                  params={params}
+                  name={card.name}
                   reducedMotion={reducedMotion}
                 />
               </StageBoundary>

@@ -1,5 +1,5 @@
 import { Canvas, type RootState } from '@react-three/fiber'
-import { Suspense, useImperativeHandle, useMemo, useRef } from 'react'
+import { type RefObject, Suspense, useImperativeHandle, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
 import { compilePotion } from '../potion/compile.ts'
@@ -35,13 +35,25 @@ export function captureOverGround(state: RootState, ground: string): HTMLCanvasE
   }
 }
 
+/** The box stage's handle: a roll by whole turns, and the picture drawn over the card's ground. */
+export function potionStageHandle(
+  three: RefObject<RootState | null>,
+  rollTarget: RefObject<number>,
+): StageHandle {
+  return {
+    roll: (turns) => {
+      rollTarget.current += turns * Math.PI * 2
+    },
+    capture: () => {
+      const state = three.current
+      if (!state) return Promise.reject(new Error('stage not ready'))
+      return Promise.resolve(captureOverGround(state, PICTURE_GROUND))
+    },
+  }
+}
+
 /** The potion's box stage: the bottle standing on the table, seen from the front, turned about its axis. */
-export default function PotionStage({
-  params,
-  reducedMotion,
-  name,
-  ref,
-}: StageProps) {
+export default function PotionStage({ params, reducedMotion, name, ref }: StageProps) {
   const spec = useMemo(() => compilePotion(params), [params])
   const label = useMemo(
     () => ({ name: name ?? potionName(params), gold: isGold(params) }),
@@ -53,20 +65,7 @@ export default function PotionStage({
   const rollTarget = useRef(0)
   const three = useRef<RootState | null>(null)
 
-  useImperativeHandle(
-    ref,
-    (): StageHandle => ({
-      roll: (turns) => {
-        rollTarget.current += turns * Math.PI * 2
-      },
-      capture: () => {
-        const state = three.current
-        if (!state) return Promise.reject(new Error('stage not ready'))
-        return Promise.resolve(captureOverGround(state, PICTURE_GROUND))
-      },
-    }),
-    [],
-  )
+  useImperativeHandle(ref, () => potionStageHandle(three, rollTarget), [])
 
   return (
     <div className={styles.stage} aria-hidden="true">

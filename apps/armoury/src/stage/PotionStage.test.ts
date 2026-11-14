@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { PICTURE_GROUND } from '../potion/framing.ts'
-import { captureOverGround } from './PotionStage.tsx'
+import { captureOverGround, potionStageHandle } from './PotionStage.tsx'
 
 /** A renderer that keeps its clear colour and records what it was when the scene was drawn. */
 function stubState(opts: { throws?: boolean } = {}) {
@@ -61,5 +61,23 @@ describe("the potion's picture", () => {
     expect(drawnOver[0]!.alpha).toBe(1)
     expect(clear.colour.getHexString()).toBe('123456')
     expect(clear.alpha).toBe(0)
+  })
+
+  test("is what the stage's capture hands the share card", async () => {
+    const { state, drawnOver } = stubState()
+    const handle = potionStageHandle({ current: state }, { current: 0 })
+    const picture = await handle.capture()
+    expect(picture.width).toBe(2000)
+    expect(drawnOver).toEqual([
+      { colour: new THREE.Color(PICTURE_GROUND).getHexString(), alpha: 1 },
+    ])
+  })
+
+  test('turns the bottle by whole turns and refuses a capture before the canvas is ready', async () => {
+    const roll = { current: 0 }
+    const handle = potionStageHandle({ current: null }, roll)
+    handle.roll(1.5)
+    expect(roll.current).toBeCloseTo(3 * Math.PI)
+    await expect(handle.capture()).rejects.toThrow('stage not ready')
   })
 })
