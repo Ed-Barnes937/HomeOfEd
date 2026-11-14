@@ -312,10 +312,11 @@ test.describe('on a phone', () => {
   })
 })
 
+// The generated texts that wrap to the most lines, found by setting every name and tag line on the card.
 const LONGEST_TEXTS: [Params, string][] = [
   [
-    { ...withPours(['emberroot', 'snailshine', 'thundercloud']), shape: 'shoulder' },
-    'Emberroot, Snailshine and Thundercloud',
+    { ...withPours(['emberroot', 'thundercloud', 'starpetal']), shape: 'shoulder' },
+    'Emberroot, Thundercloud and Starpetal',
   ],
   [
     { ...withPours(['frogfizz', 'thundercloud', 'thundercloud']), shape: 'shoulder', mixed: 'yes' },

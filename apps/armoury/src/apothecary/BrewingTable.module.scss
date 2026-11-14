@@ -5,7 +5,7 @@
   --slot: min(460px, 51cqh);
   --u: calc(var(--slot) / 460);
   --bottle-x: max(56cqw, calc(var(--u) * 433 + 12px));
-  --floor: 70cqh;
+  --floor: min(70cqh, calc(100cqh - 280px));
   --card-left: max(28px, calc(var(--bottle-x) - var(--u) * 560));
   --card-top: calc(var(--floor) + var(--u) * 44);
   --card-w: clamp(380px, calc(100cqw - var(--card-left) - 190px), 430px);
@@ -208,8 +208,9 @@
   }
 }
 
-// Under the bottle the card hangs from the foot, which rises on a short scene so the longest
-// card and the hint fit; the bottle shrinks to keep its stopper under the header's buttons.
+// Under the bottle the card, the scene's width so the longest texts wrap to fewer lines, hangs
+// from the foot, which rises on a short scene so the longest card and the hint fit; the bottle
+// shrinks to keep its stopper under the header's buttons.
 @media (max-width: 899px) {
   .scene {
     --header-clear: 60px;
@@ -218,6 +219,7 @@
     --floor: min(62cqh, calc(100cqh - 176px));
     --card-left: 14px;
     --card-w: calc(100cqw - 28px);
+    --tag-width: 100%;
     --card-top: calc(var(--floor) + var(--u) * 24);
     --hole-x: 18px;
   }
@@ -227,12 +229,5 @@
     width: auto;
     margin: 6px 0 0 6px;
     font-size: 16px;
-  }
-
-  // On a short phone the card takes the scene's width so the longest texts wrap to fewer lines.
-  @container (max-height: 419px) or (max-width: 389px) {
-    .card {
-      --tag-width: 100%;
-    }
   }
 }
