@@ -1,5 +1,7 @@
 # 0107 - armoury bottle generator: lathe profiles, equal pours, tipped levels, parts
 
+> Amended 2026-11-14: the wax seal is cut; see [The wax seal: cut](#the-wax-seal-cut).
+
 - **Status:** Accepted
 - **Date:** 2026-11-13
 - **Related:** [ADR 0104](0104-armoury-potion-item.md) (the potion item and its rows),
@@ -61,13 +63,10 @@ light half must be safe for the main chunk.
   bottle's axis; tipped, a shader must use dot(p, u), not `aHeight`.
 - **Stoppers.** Each is a lathe that fills the bore to the cavity's top, 0.05 mm inside it:
   `cork` a tapered plug 60 percent in the bore, chamfered; `glass` a ground plug, a collar
-  on the lip, a stem and a teardrop knob that reaches `heightMm`; `wax` a cork dipped in
-  wax (its shape since the form gate is under "Form gate, round 2" below: a thin coat over
-  the lip and a nearly flush cork, a low domed top, a coat down the neck to a wavy hem and
-  runs of different lengths). The mesh lifts the wax's lathe unevenly, with normals carried
-  through the lift exactly.
+  on the lip, a stem and a teardrop knob that reaches `heightMm`. A third, `wax`, was cut
+  (below).
   `heightMm` is the top of the 16 mm stopper allowance: the glass knob reaches it, the cork
-  and the wax stop below it. It is the same for every stopper, so a bottle is framed the
+  stops below it. It is the same for every stopper, so a bottle is framed the
   same whatever its stopper.
 - **Labels face the child, along -y** (`FRONT_ANGLE`). Paper is a closed sheet 0.3 to
   0.42 mm off the glass along its normal, its UVs in millimetres across the paper, centred:
@@ -81,12 +80,11 @@ light half must be safe for the main chunk.
 - **Parts and budgets.** `buildPotionMesh` returns `glass` (64 segments), `liquid` (64),
   `stopper` (40) and `label` (or `null`), each closed, consistently wound and with outward
   unit normals, plus a per-vertex `aHeight`, the height in mm along the bottle's axis. Every
-  connected piece of a part (a drip, the cork under the wax, the tag's string) encloses a
+  connected piece of a part (the tag's card, its string) encloses a
   positive volume, so an inside-out piece fails a test even when the part's total does not.
   Budgets are asserted on vertex counts: glass 20k, liquid 10k, stopper and label 8k, total
-  40k. Across all 1,260 combinations (necks in 0.05 steps) the most is glass 13.1k (gourd,
-  neck 1), liquid 4.7k (gourd, neck 0.9), stopper and label 6.4k (round, neck 0.05, wax,
-  tag), total 23.8k (gourd, neck 1, wax, round label); the test catalogue names these.
+  40k. The most any combination takes is under [The wax seal: cut](#the-wax-seal-cut); the
+  test catalogue names those.
 - **Outline (`outline.ts`, main chunk safe).** `potionOutline` returns a `PotionSilhouette`:
   the glass's outer silhouette, the stopper's envelope and one polygon per band clipped to
   the cavity at the upright levels with its colour, x across and y up from the foot, plus
@@ -102,15 +100,12 @@ The bottle is judged in plain grey (`?clay`) on the real stage rigs (ticket 09),
 and sword baseline, before any material exists. Shots and each round's review are in the epic's
 `shots/09/r<N>/`.
 
-- **Two corrections to the text above.** The cork sits 60 percent in the bore on most necks and
-  54 percent on short ones; the wax is about 1.0 mm thick at the lip's corner, not 1.1.
-- **The wax seal had a flat top** for round 1. The wax rose straight from the bead to a flat top
-  just over the cork, with a 1.75 mm rounded edge, in place of an earlier tall rounded cap over
-  a narrower collar that read as a mushroom; the top tilted and the dipped edge wandered. Round
-  1 read it as a screw cap; round 2 below replaced it.
+- **A correction to the text above.** The cork sits 60 percent in the bore on most necks and
+  54 percent on short ones.
 - **The round label is 32 percent of the body's height across** (was 40), so on the teardrop and
   the gourd, where it sits low on the widest band, the lower pours show beside it.
-- Cuts: none so far.
+- Cuts: none at this gate. The wax seal was reshaped here twice and cut later, at ticket 10's
+  look gate (below).
 
 ### Form gate, round 2
 
@@ -118,22 +113,6 @@ Round 1's review (`shots/09/r1/review.md`) passed the shapes, necks, cork, glass
 and asked for changes to the bottle's dressing. In ring diameters D (the lip ring's outer
 diameter, 18 to 22 mm):
 
-- **The wax seal is a cork dipped in wax, not a cap.** The cork sits 0.8 mm above the lip (was
-  4). Outside, the wax stands 0.05 D beyond the lip ring at its side and sags: 0.45 mm over the
-  ring's top, so the bead and the cork's edge show through, then up over the cork and domed
-  0.8 mm across the whole ring, 0.12 to 0.15 D above the lip in all. Below the bead it flares
-  down into the neck like a bell (leaving the bead's round 20 degrees below its middle, over up
-  to 7 mm) instead of standing as a straight-sided puck, and the coat thins from 0.65 mm to a
-  0.3 mm rounded hem (the roll is gone). The coat runs 0.65 D down a long neck and at most 55
-  percent of the room a short one has (at least 2 lips plus 7 mm, and never within 2.5 mm of
-  the floor). The hem wanders up and down by up to 0.14 D in four lobes of uneven size, phased
-  so the front is wavy; the top tilts by about 0.35 mm and has three low lumps (0.12 mm at the
-  cork's edge). Four runs (was six even drips) leave the hem at -0.55, 0.3, 1.75 and 3.6 rad from
-  the front, 0.6, 1.0, 0.3 and 0.42 D long: each a flattened lathe lying on the neck, 0.1 D wide
-  at the hem, narrowing to 0.06 D and ending in a 0.08 D bead. Nothing of the wax reaches below
-  1 mm above the shoulder, or 1.5 mm above a tag's loop; on a short neck the runs shorten
-  together, by one scale, so they keep their different lengths. "Dome" no longer names the old
-  superellipse cap anywhere.
 - **The banner wraps 120 degrees** (was 140) and is 18 mm high (was 22), so both notched ends sit
   inside the front silhouette and more of the pours shows above and below.
 - **The tag hangs like a luggage tag.** Its top hangs 0.66 to 0.71 neck diameters below the
@@ -159,11 +138,34 @@ diameter, 18 to 22 mm):
   end** (it dropped only steps running backwards along the source), so the square shoulders'
   inner wall no longer folds a lathe ring at necks 0.625 to 0.67. Only that shape moves: its
   inner wall by at most 0.01 mm and its liquid by 0.05 mm; every outer silhouette is unchanged.
-- **Budgets after round 2**, across all 1,260 combinations: glass 13.6k (gourd, neck 1, cork, no
-  label), liquid 5.2k (gourd, neck 0.9), stopper and label 7.5k (round, neck 0.9, wax, tag),
-  total 25.0k (gourd, neck 1, wax, tag).
+- **Budgets after round 2**, across all 1,260 combinations then (with the wax seal, since cut):
+  glass 13.6k (gourd, neck 1, cork, no label), liquid 5.2k (gourd, neck 0.9), stopper and label
+  7.5k (round, neck 0.9, wax, tag), total 25.0k (gourd, neck 1, wax, tag).
 - Left for the owner or later tickets: the glass stopper's finial, a tighter square shoulder, the
   bottle's size in the scene, and the liquid surface's aliased far rim (ticket 10).
+
+## The wax seal: cut
+
+On 2026-11-14 ticket 10's look gate (`shots/10/r2/review.md`, "The wax seal: CUT") cut the
+`wax` stopper, after three reshapes (round 1, round 2 and ticket 10's short-neck tries). Upright
+on the short round flask, the pose seen most, its bell read as a muffin top or a mushroom cap;
+tipped towards the child, as a plastic drawer pull; and its even gloss read as plastic or clay,
+worse in the mixed colours every child sees after the mix. It did not read as wax on a cork on
+every shape a child can make, which was the bar.
+
+- **Two stoppers remain:** `cork` and `glass`. The wax's profile, its coat and runs, its lifted
+  lathe, its colour (`waxColour`) and its material are gone, and so is the shader split that told
+  the cork under it from the wax.
+- **A save or a share link that says `stopper: 'wax'` opens with a cork.** `normalise` already
+  falls back to a choice's default for a value it does not know, and the stopper's default is
+  `cork`; tests pin it at the schema, the save document and the share link. Nothing had shipped,
+  so there is no other migration.
+- **Presets:** Puddle Jumper (frogfizz, bluebell and puffcap in smoky glass on a tag) takes a cork,
+  for its earthy pond; Night Sky (moonmilk and rosehip in violet glass) takes the glass stopper, a
+  jewel for a night sky. Both kept their other choices.
+- **Budgets now**, across all 840 combinations (necks in 0.05 steps): glass 13.6k (gourd, neck 1),
+  liquid 5.2k (gourd, neck 0.9), stopper and label 5.2k (round, glass stopper, tag, neck 0.15 and
+  up), total 23.2k (gourd, neck 1, glass stopper, tag).
 
 ## Consequences
 

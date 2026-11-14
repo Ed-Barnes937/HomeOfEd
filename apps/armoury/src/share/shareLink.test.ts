@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { normalise } from '../engine/schema.ts'
+import { defaults, normalise } from '../engine/schema.ts'
 import { fakeSword } from '../items/testing/fakeItem.ts'
+import { potionSchema } from '../potion/potionSchema.ts'
 import { wandItem } from '../wand/item.ts'
 import { wandSchema } from '../wand/wandSchema.ts'
 import {
@@ -150,6 +151,20 @@ describe('share links, now that the payload names the kind', () => {
       expect(decodeShare(junk, bothKinds)).toBeNull()
     },
   )
+
+  it('open a potion link made while it could be sealed with wax, with a cork', () => {
+    const waxed = {
+      params: { ...defaults(potionSchema), shape: 'gourd', stopper: 'wax' },
+      name: 'Drip',
+    }
+    expect(decodeShare(token({ version: 1, potion: waxed }))).toEqual({
+      kind: 'potion',
+      item: {
+        params: { ...defaults(potionSchema), shape: 'gourd', stopper: 'cork' },
+        name: 'Drip',
+      },
+    })
+  })
 
   it('always point at /shared, whichever page built the link', () => {
     expect(buildShareUrl('http://localhost:3011', 'wand', wand)).toBe(

@@ -33,11 +33,11 @@ describe('visibleGroups', () => {
   })
 
   it('sums up the bottle by its shape and the finish by its stopper', () => {
-    const p = potion({ shape: 'gourd', stopper: 'wax' })
+    const p = potion({ shape: 'gourd', stopper: 'glass' })
     expect(
       shown(p)
         .map(([, , , summary]) => summary)
         .slice(1),
-    ).toEqual(['Gourd bottle', 'Sealed with wax'])
+    ).toEqual(['Gourd bottle', 'Glass stopper'])
   })
 })

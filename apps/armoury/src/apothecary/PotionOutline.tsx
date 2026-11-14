@@ -10,9 +10,7 @@ type Point = [number, number]
 const CORK = '#a7814f'
 
 function stopperColour(spec: PotionSpec): string {
-  if (spec.stopper === 'glass') return GLASS_TINTS[spec.glass]
-  if (spec.stopper === 'wax') return spec.waxColour ?? CORK
-  return CORK
+  return spec.stopper === 'glass' ? GLASS_TINTS[spec.glass] : CORK
 }
 
 /** The bands' risen sides run on into one column, mirrored back down: a single fill to the full level. */

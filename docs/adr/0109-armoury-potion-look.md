@@ -1,5 +1,7 @@
 # 0109 - armoury potion look: fake glass either side of a layered liquid, by one candle and a cool rim
 
+> Amended 2026-11-14: the wax seal is cut; see "The wax seal: cut" below.
+
 - **Status:** Accepted
 - **Date:** 2026-11-14
 - **Related:** [ADR 0082](0082-armoury-material-zones.md) and [ADR 0083](0083-armoury-glowing-gems.md)
@@ -24,7 +26,7 @@ the three-ingredient layered liquid of ticket 20. The mixed liquid and the swirl
 
 **What is built.** `stage/potionMaterials.ts` holds the pure tables (a glass look per `glass`
 value, a stopper look per `stopper`, a label layout per `label`, plain and gold paper) and the
-builders: the glass as four passes, the liquid as two, the cork, the wax and the label paper.
+builders: the glass as four passes, the liquid as two, the cork and the label paper.
 `stage/potionScene.tsx` holds M1's lamps, the environment and the canvas's tone mapping;
 `PotionMesh.tsx` draws the bottle from them, and keeps the plain grey `?clay` drawing beside it
 for form gates.
@@ -99,18 +101,16 @@ ray-plane point drives it). `createLiquid().setSurface(up, levels, floor)` write
 up, the band tops (at most `MAX_POURS`), the floor along that up and the edges into the
 uniforms in place, allocating nothing, for tickets 12 and 14.
 
-**Render order and depth.** Opaque first (the cork, the wax, the label), then the glass's far
+**Render order and depth.** Opaque first (the cork, the label), then the glass's far
 half (tint 1, light 1.1), the liquid's surface (2) and body (2.1), particles (3, ticket 11), the
 glass's near half (tint 4, light 4.1). Glass and liquid are transparent and write no depth;
 the liquid's order only interleaves with the glass's because it is transparent. The glass
 stopper is the same glass, a little more opaque, split by facing alone (above).
 
-**Stoppers and paper.** Cork is a speckled canvas texture with a bump. The wax is a glossy
-clear-coated material with a sheen in the stopper's wax colour; it and the cork under it are one
-part of the mesh, split in the shader by position (inside the bore below the lip is cork). The
-label is paper with its ink drawn on a canvas in IM Fell English: the child's name for it, or
-the derived name (which reads "Moonmilk, Rosehip and Starpetal" until the mix and changes at it,
-so the texture redraws when the name changes). The name is set in balanced lines in the largest
+**Stoppers and paper.** Cork is a speckled canvas texture with a bump. The label is paper with
+its ink drawn on a canvas in IM Fell English: the child's name for it, or the derived name
+(which reads "Moonmilk, Rosehip and Starpetal" until the mix and changes at it, so the texture
+redraws when the name changes). The name is set in balanced lines in the largest
 size that fits the label's ink area: inside a double ring on a round label, between rules on a
 banner, below the hole and the string's U on a tag. The face against the glass is plain paper.
 A mixed secret blend (`isGold`) gets gilt paper with a bright edge. The tag's string is told
@@ -137,7 +137,7 @@ AgX turned the liquids pastel in the spike (the ember glow salmon, the gold must
 them jewel-like. There is no post pass at
 rest: through the smithy's composer the glass goes dull, because over a transparent canvas the
 post pass drops the light the glass adds. Every potion shader ends in the sword's soft knee under
-`0.92 * BLOOM_THRESHOLD`; the paper, cork and wax give off far less than that. The uncorking's
+`0.92 * BLOOM_THRESHOLD`; the paper and cork give off far less than that. The uncorking's
 bloom is ticket 15's (ADR 0111): a composer only while the flare runs, or the flare drawn as its
 own capped sprites.
 
@@ -163,16 +163,13 @@ degrees and 0.171 apart, Starpetal and Frogfizz 44 degrees and 0.161, and the cl
 Rosehip and Puffcap at 0.143. A unit test pins the rainbow order. `MURK_REACH` is untouched, and
 the potion suite's colour bounds hold. Presets keep their bottles and finishes.
 
-**The wax seal (ticket 09's deferral).** Judged in the glossy wax on the round flask at neck 0
-and 0.1: the sheen along the bell and the beaded runs read as dripped wax. The prescribed
-reshape for short necks (the overhang at the lip ring plus 0.05 neck diameters, the coat at most
-0.5 neck diameters below the lip) was tried: the overhang already is that, and the coat shortens
-by 2 mm at most, which made no visible difference, so it was not kept. A thicker coat under the
-bead on short necks (as thick as the lip, so the silhouette narrows less below the bead) was
-tried too: it filled the waist a little but read as a cap, the first form gate's complaint, so it
-was not kept either. The wax stays as ticket 09 shaped it; the gate
-decides whether its bell still reads as a mushroom on the short round flask, and only then is it
-cut (schema, `bottles.ts`, presets, recorded in ADR 0107).
+**The wax seal: cut.** Ticket 09 deferred the wax seal's short-neck question to this gate. Two
+reshapes for short necks were tried here (the prescribed shorter coat, then a thicker coat under
+the bead); the first made no visible difference and the second read as a cap, so neither was
+kept. On 2026-11-14 the gate (`shots/10/r2/review.md`) cut it: upright on the short round flask
+it read as a muffin top or a mushroom cap, tipped towards the child as a plastic drawer pull, and
+its even gloss as plastic or clay, worse in the mixed colours a child sees after the mix. Its material and the shader split
+between it and its cork are gone; ADR 0107 records the rest of the cut.
 
 **Cost.** Measured on the M3 MacBook, headless Chromium on ANGLE Metal, uncapped, each frame
 forced to finish with a 1-pixel `readPixels`, median of 5 runs of 3 s, whole page: the close look

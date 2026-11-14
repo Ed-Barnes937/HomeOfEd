@@ -31,10 +31,10 @@ test('choosing the bottle and its finish changes what is drawn and the card', as
 
   await root.chooseIn('Shape', 'Gourd bottle')
   await root.chooseIn('Glass', 'Amber')
-  await root.chooseIn('Stopper', 'Sealed with wax')
+  await root.chooseIn('Stopper', 'Glass stopper')
   await root.chooseIn('Label', 'Tag on a string')
 
-  await root.verifyStage({ shape: 'gourd', glass: 'amber', stopper: 'wax', label: 'tag' })
+  await root.verifyStage({ shape: 'gourd', glass: 'amber', stopper: 'glass', label: 'tag' })
   await root.verifyPotionName('Moonmilk, Rosehip and Starpetal')
   await root.verifyDescription('Three layers in a gourd bottle. Cloudy, then swirly, then sparkly.')
   expect(await root.potionNumber()).not.toBe(number)

@@ -93,20 +93,17 @@ describe('potionOutline', () => {
     expect(potionOutline(specOf('round', 0.5, THREE.slice(0, 2))).bands).toHaveLength(2)
   })
 
-  it.each(['cork', 'glass', 'wax'] as const)(
+  it.each(['cork', 'glass'] as const)(
     'draws the %s stopper above the lip, under the drawn height',
     (stopper) => {
       const spec = specOf('teardrop', 0.5, THREE, stopper)
       const { stopper: shape } = potionOutline(spec)
       const profile = bottleProfile(spec)
       const top = Math.max(...shape.map(([, y]) => y))
-      expect(top).toBeGreaterThan(profile.lipZ + (stopper === 'wax' ? 2.5 : 5))
+      expect(top).toBeGreaterThan(profile.lipZ + 5)
       expect(top).toBeLessThanOrEqual(spec.heightMm + 1e-9)
       if (stopper === 'glass') expect(top).toBeCloseTo(spec.heightMm, 6)
-      const { neckRadiusMm, lipMm } = BOTTLES.teardrop
-      if (stopper === 'wax')
-        expect(halfWidthAt(shape, profile.lipZ - 1)).toBeGreaterThan(neckRadiusMm + lipMm)
-      else expect(halfWidthAt(shape, profile.lipZ - 1)).toBeLessThanOrEqual(profile.stopperSeat.r)
+      expect(halfWidthAt(shape, profile.lipZ - 1)).toBeLessThanOrEqual(profile.stopperSeat.r)
     },
   )
 

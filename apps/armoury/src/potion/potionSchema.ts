@@ -3,7 +3,7 @@ import { BOTTLES, type ShapeId } from './bottles.ts'
 import { ingredient, INGREDIENTS, type IngredientId, isIngredient } from './ingredients.ts'
 
 export type GlassId = 'clear' | 'sea' | 'amber' | 'violet' | 'smoky'
-export type StopperId = 'cork' | 'glass' | 'wax'
+export type StopperId = 'cork' | 'glass'
 export type LabelId = 'none' | 'round' | 'banner' | 'tag'
 
 export const POUR_KEYS = ['pour1', 'pour2', 'pour3'] as const
@@ -131,7 +131,6 @@ export const potionSchema: ItemSchema = {
       options: [
         { value: 'cork', label: 'Cork', weight: 5 },
         { value: 'glass', label: 'Glass stopper', weight: 2 },
-        { value: 'wax', label: 'Sealed with wax', weight: 2 },
       ],
     },
     {

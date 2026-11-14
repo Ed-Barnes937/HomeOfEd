@@ -4,7 +4,7 @@ import * as THREE from 'three'
 
 import type { PotionSpec } from '../potion/compile.ts'
 import { buildPotionMesh, type PotionMesh as PotionParts } from '../potion/geometry.ts'
-import { bottleProfile, uprightLevels, WALL_MM } from '../potion/profile.ts'
+import { uprightLevels } from '../potion/profile.ts'
 import { floorAt, levelsAt, levelTable, type LevelTable } from '../potion/tipped.ts'
 import { MAX_POURS } from '../potion/potionSchema.ts'
 import { fillGeometry, latestOnly } from './meshBuffers.ts'
@@ -23,8 +23,6 @@ import {
   PAPERS,
   paperMask,
   STOPPER_GLASS,
-  type StopperSplit,
-  waxMaterial,
 } from './potionMaterials.ts'
 import { CANDLE_AT, LAMPS, MOON_AT } from './potionScene.tsx'
 import { MM } from './scene.tsx'
@@ -146,13 +144,9 @@ interface Built {
   floor: number
   /** Built with the mesh for a bottle that tips, so the first lean costs nothing. */
   table: LevelTable | null
-  /** The bore's radius and the lip's height, which split a wax seal from its cork. */
-  boreR: number
-  lipZ: number
 }
 
 function buildAll({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built {
-  const profile = bottleProfile(spec)
   const parts = buildPotionMesh(spec)
   return {
     spec,
@@ -160,8 +154,6 @@ function buildAll({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built {
     upright: uprightLevels(spec),
     floor: heightRange(parts.liquid)[0],
     table: tips ? levelTable(spec) : null,
-    boreR: profile.neckR - WALL_MM,
-    lipZ: profile.lipZ,
   }
 }
 
@@ -368,22 +360,12 @@ function useGlassLook(spec: PotionSpec, built: Built) {
   )
   const liquid = useDisposed(useMemo(createLiquid, []))
   const corkMap = useDisposed(useMemo(corkTexture, []))
-  const split = useMemo<StopperSplit>(() => ({ uBoreR: { value: 0 }, uLipZ: { value: 0 } }), [])
-  const cork = useDisposed(useMemo(() => corkMaterial(corkMap, null), [corkMap]))
-  const sealedCork = useDisposed(useMemo(() => corkMaterial(corkMap, split), [corkMap, split]))
-  const wax = useDisposed(
-    useMemo(
-      () => (spec.waxColour ? waxMaterial(spec.waxColour, split) : null),
-      [spec.waxColour, split],
-    ),
-  )
+  const cork = useDisposed(useMemo(() => corkMaterial(corkMap), [corkMap]))
 
   const top = useMemo(() => heightRange(built.parts.liquid)[1], [built])
   useLayoutEffect(() => {
-    split.uBoreR.value = built.boreR
-    split.uLipZ.value = built.lipZ
     liquid.setLayers(built.spec.layers)
-  }, [split, liquid, built])
+  }, [liquid, built])
   useLayoutEffect(() => {
     const u = liquid.uniforms
     const middle = new THREE.Vector3(0, (top / 2) * MM, 0)
@@ -396,7 +378,7 @@ function useGlassLook(spec: PotionSpec, built: Built) {
     u.uSelf.value = LIQUID.self
   }, [liquid, top])
 
-  return { glass, stopperGlass, liquid, cork, sealedCork, wax }
+  return { glass, stopperGlass, liquid, cork }
 }
 
 /**
@@ -479,12 +461,7 @@ function GlassBottle(props: PotionMeshProps) {
         [stopperGlass.nearTint, ORDER.nearTint],
         [stopperGlass.nearLight, ORDER.nearLight],
       ]
-    : look.wax
-      ? [
-          [look.sealedCork, 0],
-          [look.wax, 0],
-        ]
-      : [[look.cork, 0]]
+    : [[look.cork, 0]]
 
   return (
     <group position={[0, (-shown.heightMm * MM) / 2, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={MM}>

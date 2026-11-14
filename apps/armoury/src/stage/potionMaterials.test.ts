@@ -65,7 +65,6 @@ describe('potion material tables', () => {
       expect(inUnit(row.roughness), value).toBe(true)
       if (row.colour) expect(rgbInUnit(row.colour), value).toBe(true)
     }
-    expect(STOPPER_LOOKS.wax.roughness).toBeLessThan(STOPPER_LOOKS.cork.roughness)
   })
 
   it('has a label row for every label, none drawing nothing', () => {

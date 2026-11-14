@@ -663,14 +663,11 @@ export interface StopperLook {
   colour: Rgb | null
   roughness: number
   clearcoat: number
-  /** A little light from inside: wax lets some through. */
-  glow: number
 }
 
 export const STOPPER_LOOKS: Record<StopperId, StopperLook> = {
-  cork: { colour: linear('#c9ac84'), roughness: 0.9, clearcoat: 0, glow: 0 },
-  glass: { colour: null, roughness: 0.03, clearcoat: 1, glow: 0 },
-  wax: { colour: null, roughness: 0.3, clearcoat: 0.7, glow: 0.06 },
+  cork: { colour: linear('#c9ac84'), roughness: 0.9, clearcoat: 0 },
+  glass: { colour: null, roughness: 0.03, clearcoat: 1 },
 }
 
 /** A pressed cork's surface: speckled granules of light and dark. */
@@ -710,38 +707,9 @@ export function corkTexture(): THREE.CanvasTexture {
   return texture
 }
 
-export interface StopperSplit {
-  [name: string]: THREE.IUniform
-  /** The bore's radius and the lip's height: the cork plug is what lies inside the bore, below the lip. */
-  uBoreR: THREE.IUniform<number>
-  uLipZ: THREE.IUniform<number>
-}
-
-const SPLIT_PARS = /* glsl */ `
-uniform float uBoreR, uLipZ;
-varying vec3 vBottle;
-bool potionIsCork() { return length(vBottle.xy) < uBoreR + 0.3 && vBottle.z < uLipZ + 0.6; }
-`
-
-function splitBy(material: THREE.Material, split: StopperSplit, keepCork: boolean) {
-  material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, split)
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vBottle;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBottle = position;')
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${SPLIT_PARS}`)
-      .replace(
-        '#include <clipping_planes_fragment>',
-        `#include <clipping_planes_fragment>\nif (potionIsCork() != ${keepCork}) discard;`,
-      )
-  }
-  material.customProgramCacheKey = () => (keepCork ? 'potion-cork-split' : 'potion-wax-split')
-}
-
-export function corkMaterial(map: THREE.Texture, split: StopperSplit | null) {
+export function corkMaterial(map: THREE.Texture) {
   const look = STOPPER_LOOKS.cork
-  const material = new THREE.MeshStandardMaterial({
+  return new THREE.MeshStandardMaterial({
     map,
     bumpMap: map,
     bumpScale: 2.5,
@@ -749,26 +717,6 @@ export function corkMaterial(map: THREE.Texture, split: StopperSplit | null) {
     color: new THREE.Color(...look.colour!),
     envMapIntensity: 0.3,
   })
-  if (split) splitBy(material, split, true)
-  return material
-}
-
-export function waxMaterial(hex: string, split: StopperSplit) {
-  const look = STOPPER_LOOKS.wax
-  const colour = new THREE.Color(hex)
-  const material = new THREE.MeshPhysicalMaterial({
-    color: colour,
-    roughness: look.roughness,
-    clearcoat: look.clearcoat,
-    clearcoatRoughness: 0.18,
-    sheen: 0.4,
-    sheenColor: colour.clone().lerp(new THREE.Color('#ffffff'), 0.35),
-    sheenRoughness: 0.5,
-    emissive: colour.clone().multiplyScalar(look.glow),
-    envMapIntensity: 0.9,
-  })
-  splitBy(material, split, false)
-  return material
 }
 
 // ---- Labels ----------------------------------------------------------------------------------
@@ -825,7 +773,6 @@ export const PAPERS: { plain: Paper; gold: Paper; twine: string } = {
 export const RESTING_EMISSIVE = {
   paper: Math.max(...PAPERS.plain.emissive),
   goldPaper: Math.max(...PAPERS.gold.emissive),
-  wax: STOPPER_LOOKS.wax.glow,
   liquidSelf: LIQUID.self,
   glassRim: Math.max(...STOPPER_GLASS(GLASS_LOOKS.clear).rim),
 }
