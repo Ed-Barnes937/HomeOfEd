@@ -21,6 +21,11 @@
 // --flourish=0.5,2.2 shoots the sword's close look that many seconds into its arrival flourish (f<ms>), the
 // stage held still at that exact moment on its own clock while the shot is taken (dev server only); --glints=3.9,4.1 then taps the sword again for each, once the last
 // flourish is at rest, and shoots it that far in (g<ms>), then puts it back (r<ms> after). Both skip the zoom; times land in <name>-<view>-frames.txt.
+// A potion takes --flourish and --glints too (in place of its close frames; a glint's tap replays the show), before
+// any drags. --settle=0,100,400 shoots each lean and tip again that many ms of motion after its release (<tag>-s<ms>),
+// the stage held still at that moment (a stalled frame steps at most 0.05 s, as the rig and the slosh do); the pose and the liquid surface's wobble from level land beside
+// them in <name>-<view>-settle.txt. --early=1 starts the first drag that many seconds into the arrival show instead of
+// after it. --views also takes narrow (900x900) and small (360x640).
 /* global console, document, URLSearchParams */
 import { Buffer } from 'node:buffer'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -55,6 +60,8 @@ const leantips = options.leantips
   ? options.leantips.split(',').map((pair) => pair.split(':').map(Number))
   : []
 const face = flags.has('--face')
+const settleAt = options.settle ? options.settle.split(',').map(Number) : []
+const early = options.early === undefined ? null : Number(options.early)
 const freeze = options.freeze ?? null
 // The close look rolls, leans and tips 0.007 radians per pixel dragged.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
@@ -95,6 +102,8 @@ const token = (kind, params) =>
 const views = [
   { tag: 'desk', viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
   { tag: 'phone', viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 },
+  { tag: 'narrow', viewport: { width: 900, height: 900 }, deviceScaleFactor: 2, asked: true },
+  { tag: 'small', viewport: { width: 360, height: 640 }, deviceScaleFactor: 3, asked: true },
 ]
 // Milliseconds after the tap: rising, the wave or flourish, the spell or glint, the glow, at rest.
 const CLOSE_FRAMES = options.close
@@ -114,7 +123,7 @@ try {
   for (const [name, { kind, params }] of Object.entries(set)) {
     if (wanted && !wanted.has(name)) continue
     for (const view of views) {
-      if (viewTags && !viewTags.has(view.tag)) continue
+      if (viewTags ? !viewTags.has(view.tag) : view.asked) continue
       const ctx = await browser.newContext({
         viewport: view.viewport,
         deviceScaleFactor: view.deviceScaleFactor,
@@ -191,7 +200,9 @@ try {
         const start = Date.now()
         shotAt.push(`started: ${start - tapped} ms after the tap`)
         let waited = 0
-        for (const ms of kind === 'potion' ? POTION_CLOSE_FRAMES : CLOSE_FRAMES) {
+        const closeFrames =
+          kind === 'potion' ? (flourishing ? [] : POTION_CLOSE_FRAMES) : CLOSE_FRAMES
+        for (const ms of closeFrames) {
           // A wand's and a sword's frames keep their old spacing, so they still compare with earlier shots.
           await page.waitForTimeout(
             kind === 'potion' ? Math.max(0, start + ms - Date.now()) : ms - waited,
@@ -202,7 +213,56 @@ try {
         }
         await touched
         writeFileSync(join(out, `${name}-${view.tag}-close.txt`), shotAt.join('\n') + '\n')
+        const log = []
+        const since = () => page.evaluate(() => globalThis.sinceFlourish ?? null)
+        const at = async (s) =>
+          page.waitForFunction((s) => (globalThis.sinceFlourish ?? -1) >= s, s, {
+            polling: 10,
+            timeout: 30000,
+          })
+        // The stage holds still at exactly `s` while the shot is taken, so a slow screenshot cannot drift.
+        const take = async (s, tag) => {
+          await page.evaluate((s) => {
+            globalThis.holdFlourishAt = s
+          }, s)
+          await page.waitForFunction((s) => globalThis.heldFlourishAt === s, s, {
+            polling: 10,
+            timeout: 30000,
+          })
+          const before = await since()
+          await page.screenshot({
+            path: shot(`${tag}${String(Math.round(s * 1000)).padStart(5, '0')}`),
+          })
+          const after = await since()
+          log.push(
+            `${tag} ${s}s: held at ${before?.toFixed(3)}s, still ${after?.toFixed(3)}s after the shot`,
+          )
+          await page.evaluate(() => globalThis.resumeFlourish())
+        }
+        const flourishShots = async () => {
+          for (const s of flourishAt) await take(s, 'f')
+          for (const s of glintAt) {
+            await at(AT_REST_SECONDS)
+            // A tap must land on the item: try a little either side of the middle.
+            for (const dx of [0, -0.06, 0.06, -0.12, 0.12]) {
+              await page.mouse.click(view.viewport.width * (0.5 + dx), view.viewport.height * 0.4)
+              const tapped = await page
+                .waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
+                  polling: 10,
+                  timeout: 1500,
+                })
+                .then(() => true)
+                .catch(() => false)
+              if (tapped) break
+            }
+            await take(s, 'g')
+          }
+        }
         if (kind === 'potion') {
+          if (flourishing) {
+            await flourishShots()
+            writeFileSync(join(out, `${name}-${view.tag}-frames.txt`), log.join('\n') + '\n')
+          }
           const x = view.viewport.width / 2
           const y = view.viewport.height * 0.45
           const pose = (lean, tip, tag) => ({
@@ -218,25 +278,39 @@ try {
           const poses = []
           const posesFile = join(out, `${name}-${view.tag}-poses.txt`)
           const reached = () => page.evaluate(() => globalThis.potionPose ?? null)
+          const settled = []
+          const holdMotion = async (t) => {
+            await page.evaluate((t) => {
+              globalThis.holdMotionAt = t
+            }, t)
+            await page.waitForFunction(() => typeof globalThis.heldMotionAt === 'number', null, {
+              polling: 10,
+              timeout: 30000,
+            })
+          }
+          const settleFile = join(out, `${name}-${view.tag}-settle.txt`)
+          // Probe values are as of the frame before the one shown, one frame behind it.
+          const described = (p) =>
+            p
+              ? `lean ${p.lean.toFixed(1)} tip ${p.tip.toFixed(1)} (tilt ${p.tilt.toFixed(1)}), wobble ${p.wobble.toFixed(2)} (lean ${p.wobbleLean.toFixed(2)}, tip ${p.wobbleTip.toFixed(2)})`
+              : 'no pose published'
+          const dragFrom = early ?? FLOURISH_OVER_SECONDS
           if (drags.length) {
             const waitFrom = Date.now()
             await page
-              .waitForFunction(
-                (s) => (globalThis.sinceFlourish ?? -1) >= s,
-                FLOURISH_OVER_SECONDS,
-                {
-                  polling: 'raf',
-                  timeout: 30000,
-                },
-              )
+              .waitForFunction((s) => (globalThis.sinceFlourish ?? -1) >= s, dragFrom, {
+                polling: 'raf',
+                timeout: 30000,
+              })
               .catch(async () => {
                 const open = (await page.getByRole('dialog').count()) > 0
                 throw new Error(
-                  `${name} ${view.tag}: the arrival flourish never reached ${FLOURISH_OVER_SECONDS} s in 30 s (${open ? 'is the flourish probe mounted, on a dev server?' : 'the close look is gone: did the dev server reload the page?'})`,
+                  `${name} ${view.tag}: the arrival flourish never reached ${dragFrom} s in 30 s (${open ? 'is the flourish probe mounted, on a dev server?' : 'the close look is gone: did the dev server reload the page?'})`,
                 )
               })
+            const into = await since()
             poses.push(
-              `flourish over: ${Date.now() - start} ms after the lift, waited ${Date.now() - waitFrom} ms`,
+              `${early === null ? 'flourish over' : `first drag ${into?.toFixed(2)} s into the show`}: ${Date.now() - start} ms after the lift, waited ${Date.now() - waitFrom} ms`,
             )
           }
           for (const { tag, lean, tip } of drags) {
@@ -271,8 +345,26 @@ try {
               Math.abs(got.tip - tip) > POSE_TOLERANCE
             )
               throw new Error(`${name} ${view.tag} ${line}, not within ${POSE_TOLERANCE} degrees`)
+            // With --settle the held shot is taken with the stage still too, so its stall cannot run the clock on past the release.
+            if (settleAt.length) await holdMotion(await page.evaluate(() => globalThis.motionClock))
             await page.screenshot({ path: shot(tag) })
+            settled.push(`${tag} held: ${described(got)}`)
+            if (settleAt.length) await page.evaluate(() => globalThis.resumeFlourish())
             await page.mouse.up()
+            const released = await page.evaluate(() => globalThis.motionClock)
+            for (const ms of settleAt) {
+              await holdMotion(released + ms / 1000)
+              const held = await page.evaluate(() => ({
+                at: globalThis.heldMotionAt,
+                pose: globalThis.potionPose ?? null,
+              }))
+              await page.screenshot({ path: shot(`${tag}-s${String(ms).padStart(4, '0')}`) })
+              settled.push(
+                `${tag} s${ms}: held ${Math.round((held.at - released) * 1000)} ms after the release, ${described(held.pose)}`,
+              )
+              writeFileSync(settleFile, settled.join('\n') + '\n')
+              await page.evaluate(() => globalThis.resumeFlourish())
+            }
             await page.waitForTimeout(1500)
           }
           await page.mouse.click(view.viewport.width * 0.06, view.viewport.height * 0.5)
@@ -287,49 +379,7 @@ try {
           continue
         }
         if (flourishing) {
-          const log = []
-          const since = () => page.evaluate(() => globalThis.sinceFlourish ?? null)
-          const at = async (s) =>
-            page.waitForFunction((s) => (globalThis.sinceFlourish ?? -1) >= s, s, {
-              polling: 10,
-              timeout: 30000,
-            })
-          // The stage holds still at exactly `s` while the shot is taken, so a slow screenshot cannot drift.
-          const take = async (s, tag) => {
-            await page.evaluate((s) => {
-              globalThis.holdFlourishAt = s
-            }, s)
-            await page.waitForFunction((s) => globalThis.heldFlourishAt === s, s, {
-              polling: 10,
-              timeout: 30000,
-            })
-            const before = await since()
-            await page.screenshot({
-              path: shot(`${tag}${String(Math.round(s * 1000)).padStart(5, '0')}`),
-            })
-            const after = await since()
-            log.push(
-              `${tag} ${s}s: held at ${before?.toFixed(3)}s, still ${after?.toFixed(3)}s after the shot`,
-            )
-            await page.evaluate(() => globalThis.resumeFlourish())
-          }
-          for (const s of flourishAt) await take(s, 'f')
-          for (const s of glintAt) {
-            await at(AT_REST_SECONDS)
-            // A tap must land on the sword: try a little either side of the middle.
-            for (const dx of [0, -0.06, 0.06, -0.12, 0.12]) {
-              await page.mouse.click(view.viewport.width * (0.5 + dx), view.viewport.height * 0.4)
-              const tapped = await page
-                .waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
-                  polling: 10,
-                  timeout: 1500,
-                })
-                .then(() => true)
-                .catch(() => false)
-              if (tapped) break
-            }
-            await take(s, 'g')
-          }
+          await flourishShots()
           // A tap away puts it back: the flight down and the sword lying there again.
           await page.mouse.click(view.viewport.width * 0.06, view.viewport.height * 0.5)
           let back = 0
