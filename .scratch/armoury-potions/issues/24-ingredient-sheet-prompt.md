@@ -1,6 +1,6 @@
 # 24 - The ingredient sheet prompt for Ed
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 13 (its scene round passed), 11 (ingredient colours and traits settled), 16 (the
@@ -86,3 +86,4 @@ wand shop's and the smithy's art.
 - 2026-11-14 orchestrator, from the review of ticket 16 (`reviews/16-r1.md`): ask for compact, roughly round subjects about 70 percent of the cell (the picker's mask is solid only inside 70 percent of the picture's width, so the tips of tall or wide subjects fade out), on a flat `#0a070b` ground edge to edge; a 1024 px square is enough. Make these pairs differ in shape and silhouette, not only colour (weakest under colour blindness): Starpetal and Frogfizz; Emberroot and Frogfizz; Snailshine and Moonmilk; Rosehip and Puffcap. State the size the art must survive: 64 px on desk and, on a phone, 26 px today, about 48 px if Ed takes the reviewer's layout change (see ticket 25); write the prompt so it reads at 26 px. Tell Ed to save the sheet upright (the cutter refuses a JPEG with a rotation flag) and square.
 - 2026-11-14 orchestrator, from the second review of ticket 16: ask the image model for a PNG; that avoids the rotation flag, CMYK and JPEG problems at once.
 - 2026-11-14 orchestrator: ticket 26 is merged, so the pictures are 48 px on a phone (a soft round mask, solid inside 70 percent) and 64 px on desk. Write the prompt for art that reads at 48 px.
+- 2026-11-14 orchestrator: done. Round 1 (Opus) wrote `art/prompt.md`, `art/reference.png`, `art/layout-guide.png` and `art/dry-run.md`; the cutter dry run passed on a mock sheet. The review (`art/review.md`) asked for four changes: a square reference without bottles, the size rule as a 70 percent circle, Frogfizz reworded so nothing reads as an eye, and notes that do not assume a 1:1 setting. A fresh Opus fix round applied them and the should-changes; the orchestrator read the prompt and looked at the reference in place of a second review. Subjects that depart from this ticket's starting descriptions (Frogfizz as a frogspawn bead with no tendril, Moonmilk lilac with a full moon, Bluebell as a crook of three bells, no faces) are taste calls listed in `for-ed.md`. Nothing is committed for this ticket but this line: `art/` is local.
