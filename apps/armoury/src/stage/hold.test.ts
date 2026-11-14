@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import {
   dragUpright,
   heldTilt,
+  holdOn,
   LEAN_MARGIN,
   LEAN_MAX,
   leanFit,
@@ -228,6 +229,39 @@ describe('a drag taking an item from its flourish', () => {
     expect(taken.tipVelocity).toBe(0)
     expect(takeFromHold(pose, 1)).toMatchObject({ lean: 0, tip: -0 })
     expect(takeFromHold(pose, 0)).toMatchObject({ lean: 0.5, tip: -0.2 })
+  })
+})
+
+describe("the hold's hand-overs", () => {
+  const leaned = { lean: 0.5, tip: -0.2, leanVelocity: 2, tipVelocity: 1 }
+
+  test('a drag past the slop takes the item from the hold, from the pose as drawn, then moves it', () => {
+    const held = { upright: leaned, holdBack: 0 }
+    const dragged = holdOn(held, { kind: 'drag', dx: 10, dy: 0, weight: 0.75 })
+    expect(dragged.holdBack).toBe(Infinity)
+    expect(dragged.upright).toEqual(dragUpright(takeFromHold(leaned, 0.75), 10, 0))
+    expect(held).toEqual({ upright: leaned, holdBack: 0 })
+  })
+
+  test('a drag already holding the item only moves it', () => {
+    const held = { upright: leaned, holdBack: Infinity }
+    const dragged = holdOn(held, { kind: 'drag', dx: 0, dy: 5, weight: 1 })
+    expect(dragged).toEqual({ upright: dragUpright(leaned, 0, 5), holdBack: Infinity })
+  })
+
+  test('the last finger up gives the item back at that moment of the flourish, once', () => {
+    const taken = { upright: leaned, holdBack: Infinity }
+    expect(holdOn(taken, { kind: 'release', since: 1.3 })).toEqual({ upright: leaned, holdBack: 1.3 })
+    const given = { upright: leaned, holdBack: 0.4 }
+    expect(holdOn(given, { kind: 'release', since: 2 })).toEqual(given)
+  })
+
+  test('a flourish starts held, or taken while a drag is moving the item', () => {
+    const taken = { upright: leaned, holdBack: Infinity }
+    expect(holdOn(taken, { kind: 'flourish', dragging: false })).toEqual({ upright: leaned, holdBack: 0 })
+    expect(holdOn({ upright: leaned, holdBack: 0.7 }, { kind: 'flourish', dragging: true })).toEqual(
+      taken,
+    )
   })
 })
 

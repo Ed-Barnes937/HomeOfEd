@@ -17,13 +17,12 @@ import * as THREE from 'three'
 import { boxCameraPosition, Bridge, type BoxView } from './boxRig.tsx'
 import styles from './HeldRig.module.scss'
 import {
-  dragUpright,
   heldTilt,
+  holdOn,
   leanFit,
   leanShiftMm,
   rightUpright,
   sweptWidthMm,
-  takeFromHold,
   uprightFlourishWeight,
   type Hold,
   type Outline,
@@ -489,7 +488,7 @@ export function HeldRig({
         const g = gesture.current
         handling.current.waveAt = now
         const dragging = handling.current.grabbed && !g.pinched && g.travelled > TAP_SLOP_PX
-        handling.current.holdBack = dragging ? Infinity : 0
+        Object.assign(handling.current, holdOn(handling.current, { kind: 'flourish', dragging }))
         setFlourishAt(now)
       },
       putBack: () =>
@@ -515,9 +514,11 @@ export function HeldRig({
           handling.current.holdBack,
         )
       : 0
-  const letHoldBack = () => {
-    if (handling.current.holdBack === Infinity) handling.current.holdBack = sinceFlourish()
-  }
+  const letHoldBack = () =>
+    Object.assign(
+      handling.current,
+      holdOn(handling.current, { kind: 'release', since: sinceFlourish() }),
+    )
 
   const landsOnItem = (clientX: number, clientY: number) => {
     const state = three.current
@@ -564,11 +565,7 @@ export function HeldRig({
     if (g.travelled <= TAP_SLOP_PX || g.pinched) return
     h.touched = true
     if (item.hold === 'upright') {
-      if (h.holdBack !== Infinity) {
-        h.upright = takeFromHold(h.upright, holdWeight())
-        h.holdBack = Infinity
-      }
-      h.upright = dragUpright(h.upright, dx, dy)
+      Object.assign(h, holdOn(h, { kind: 'drag', dx, dy, weight: holdWeight() }))
       g.lastMove = e.timeStamp
       return
     }
