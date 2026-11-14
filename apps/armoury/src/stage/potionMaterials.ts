@@ -539,7 +539,7 @@ if (liqSurface) {
 liqGlow += liqCloud * pow(1.0 - liqNdv, 2.0) * uMilkSheen * liqAlbedo * mix(vec3(0.95, 0.9, 1.0), vec3(1.0, 0.95, 0.9), liqUp);
 float liqCandle = smoothstep(-0.25, 0.75, dot(normal, liqKeyView));
 if (liqTraits.glow > 0.01) {
-  float heat = 0.8 + 0.2 * potionFbm(liqP * 0.03 - uUp * (uTime * 0.12));
+  float heat = 0.8 + 0.2 * potionFbm(liqP * 0.03 - vec3(0.0, 0.0, uTime * 0.12));
   float core = liqThick * liqThick;
   liqGlow *= mix(1.0, 0.4 + 0.6 * core, liqTraits.glow);
   reflectedLight.directDiffuse *= mix(1.0, 0.45 + 0.55 * core, liqTraits.glow);

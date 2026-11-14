@@ -208,6 +208,13 @@ export function motesShown(
 export const BUBBLE_CELL_MM = 10
 /** Seven in ten bubbles rise in a stream, the rest on their own. */
 export const BUBBLE_STREAMED = 0.7
+/** A bubble climbs `base` to `base + spread` mm a second, by its seed. */
+export const BUBBLE_SPEED = { base: 6, spread: 6 }
+/** A bubble sways `mm` sideways at `rate` rad a second, more the higher it is. */
+export const BUBBLE_SWAY = { mm: 0.25, rate: 7, phase: 50 }
+/** A bubble shows over the first `BUBBLE_FADE_IN` of its rise and is gone by the last `1 - BUBBLE_FADE_OUT`. */
+export const BUBBLE_FADE_IN = 0.08
+export const BUBBLE_FADE_OUT = 0.86
 
 const fract = (v: number) => v - Math.floor(v)
 
@@ -221,7 +228,7 @@ export function motesHash3(x: number, y: number, z: number): [number, number, nu
 
 /** How far up its band a bubble is, 0 to 1, at time `t`: on a fixed length, so a band's moving span never jumps it. */
 export function bubbleRise(seed: Vec3 | readonly number[], t: number, riseMm: number): number {
-  return fract(seed[1] + (t * (6 + 6 * seed[2])) / riseMm)
+  return fract(seed[1] + (t * (BUBBLE_SPEED.base + BUBBLE_SPEED.spread * seed[2])) / riseMm)
 }
 
 /**
@@ -249,7 +256,7 @@ export function bubbleAt(
     ]
   }
   const rise = bubbleRise(seed, t, riseMm)
-  anchor[0] += 0.25 * Math.sin(t * 7 + seed[3]! * 50) * rise
+  anchor[0] += BUBBLE_SWAY.mm * Math.sin(t * BUBBLE_SWAY.rate + seed[3]! * BUBBLE_SWAY.phase) * rise
   const span = Math.max(hi - lo, 0.5)
   const lift = lo + span * rise - (anchor[0] * up[0] + anchor[1] * up[1] + anchor[2] * up[2])
   const p: [number, number, number] = [
@@ -257,5 +264,9 @@ export function bubbleAt(
     anchor[1] + up[1] * lift,
     anchor[2] + up[2] * lift,
   ]
-  return { p, rise, fade: smoothstep(0, 0.08, rise) * (1 - smoothstep(0.86, 1, rise)) }
+  return {
+    p,
+    rise,
+    fade: smoothstep(0, BUBBLE_FADE_IN, rise) * (1 - smoothstep(BUBBLE_FADE_OUT, 1, rise)),
+  }
 }

@@ -284,6 +284,14 @@ describe('the liquid', () => {
     liquid.dispose()
   })
 
+  it("rises the glow's heat along the bottle's own axis, not a clock times the moving up", () => {
+    const liquid = createLiquid()
+    const fragment = compiled(liquid.body).fragmentShader
+    expect(fragment).toContain('potionFbm(liqP * 0.03 - vec3(0.0, 0.0, uTime * 0.12))')
+    expect(fragment).not.toMatch(/uUp\s*\*\s*\(?\s*uTime/)
+    liquid.dispose()
+  })
+
   it('keeps the glow from inside under the cap on the brightest glowing ingredient', () => {
     const glowing = INGREDIENTS.filter((i) => traitLook(i.trait, i.id).shading.glow > 0)
     expect(glowing.length).toBeGreaterThan(0)

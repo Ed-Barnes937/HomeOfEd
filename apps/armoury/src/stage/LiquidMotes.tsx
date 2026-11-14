@@ -4,7 +4,11 @@ import * as THREE from 'three'
 import { MAX_POURS } from '../potion/potionSchema.ts'
 import {
   BUBBLE_CELL_MM,
+  BUBBLE_FADE_IN,
+  BUBBLE_FADE_OUT,
+  BUBBLE_SPEED,
   BUBBLE_STREAMED,
+  BUBBLE_SWAY,
   type CavityRadii,
   MOTE_EDGE_MM,
   type MoteKind,
@@ -98,12 +102,12 @@ void main() {
       anchor = vec3((cell.xy + 0.2 + 0.6 * site.xy) * ${glslFloat(BUBBLE_CELL_MM)} + 0.4 * (aSeed.zy - 0.5),
         (cell.z + 0.5) * ${glslFloat(BUBBLE_CELL_MM)});
     }
-    float rise = fract(aSeed.y + t * (6.0 + 6.0 * aSeed.z) / uRise);
-    anchor.x += 0.25 * sin(t * 7.0 + aSeed.w * 50.0) * rise;
+    float rise = fract(aSeed.y + t * (${glslFloat(BUBBLE_SPEED.base)} + ${glslFloat(BUBBLE_SPEED.spread)} * aSeed.z) / uRise);
+    anchor.x += ${glslFloat(BUBBLE_SWAY.mm)} * sin(t * ${glslFloat(BUBBLE_SWAY.rate)} + aSeed.w * ${glslFloat(BUBBLE_SWAY.phase)}) * rise;
     float span = max(hi - lo, 0.5);
     p = anchor + uUp * (lo + span * rise - dot(anchor, uUp));
     size = (0.9 + 1.1 * aSeed.z * aSeed.z) * mix(0.75, 1.15, rise);
-    fade *= smoothstep(0.0, 0.08, rise) * (1.0 - smoothstep(0.86, 1.0, rise));
+    fade *= smoothstep(0.0, ${glslFloat(BUBBLE_FADE_IN)}, rise) * (1.0 - smoothstep(${glslFloat(BUBBLE_FADE_OUT)}, 1.0, rise));
   } else {
     p += 1.8 * vec3(sin(t * 0.13 + aSeed.y * 40.0), sin(t * 0.11 + aSeed.z * 17.0), sin(t * 0.09 + aSeed.w * 23.0));
     size = 1.0 + 1.8 * aSeed.w;

@@ -6,7 +6,16 @@ import { compilePotion } from '../potion/compile.ts'
 import { bottleProfile, LIQUID_GAP_MM } from '../potion/profile.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
 import { withPours } from '../potion/pours.ts'
-import { cavityRadii, MAX_MOTES, MOTE_PROGRAMS, motePool } from '../potion/traits.ts'
+import {
+  BUBBLE_FADE_IN,
+  BUBBLE_FADE_OUT,
+  BUBBLE_SPEED,
+  BUBBLE_SWAY,
+  cavityRadii,
+  MAX_MOTES,
+  MOTE_PROGRAMS,
+  motePool,
+} from '../potion/traits.ts'
 import { createMotes, MOTE_RADII, motesGeometry } from './LiquidMotes.tsx'
 import { createLiquid } from './potionMaterials.ts'
 
@@ -19,6 +28,22 @@ describe("the liquid's motes", () => {
     expect(motes.material.vertexShader).not.toMatch(/performance|Date/)
     motes.dispose()
     liquid.dispose()
+  })
+
+  it("draw a bubble's rise, sway and fade from the numbers `bubbleAt` uses", () => {
+    const motes = createMotes(createLiquid().uniforms)
+    const g = (v: number) => v.toFixed(4)
+    const vertex = motes.material.vertexShader
+    expect(vertex).toContain(
+      `fract(aSeed.y + t * (${g(BUBBLE_SPEED.base)} + ${g(BUBBLE_SPEED.spread)} * aSeed.z) / uRise)`,
+    )
+    expect(vertex).toContain(
+      `${g(BUBBLE_SWAY.mm)} * sin(t * ${g(BUBBLE_SWAY.rate)} + aSeed.w * ${g(BUBBLE_SWAY.phase)}) * rise`,
+    )
+    expect(vertex).toContain(
+      `smoothstep(0.0, ${g(BUBBLE_FADE_IN)}, rise) * (1.0 - smoothstep(${g(BUBBLE_FADE_OUT)}, 1.0, rise))`,
+    )
+    motes.dispose()
   })
 
   it("give each band its trait's program, share and colour; none where the trait has no motes", () => {
