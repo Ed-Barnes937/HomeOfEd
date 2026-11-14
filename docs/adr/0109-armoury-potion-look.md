@@ -90,8 +90,7 @@ two and three pours, 0 to 90 degrees in 1 degree steps, and holds every edge pos
 band's window in order. Without it, leaned 60 and tipped 45 at once (69 degrees), the round
 flask's bottom two bands swapped colour. The colour of the bands is one function of the height along the surface's up
 (`potionBand`), so ticket 23's mix can blend it to one colour without restructuring the shader.
-Every band is drawn as its trait's base: `cloud` and `murk` are a slow milky noise, the rest
-`clear`; the traits themselves are ticket 11's. The lighting terms are the spike's L2 (depth of
+Each band carries its trait (see "Traits" below). The lighting terms are the spike's L2 (depth of
 colour where the eye looks through more liquid, darker at the silhouette, the candle's light out
 of the far side, the cool light through it from behind, a pearly sheen on milk), plus a gentle
 darkening towards the floor and a slow 5 percent variation in a clear liquid, so a clear band
@@ -165,6 +164,90 @@ own capped sprites.
 `prefers-reduced-motion`, and frozen at `?freeze=<seconds>` on a dev server so every gate frame
 is drawn at the same moment (`scripts/gpu-shots.mjs --freeze=1.2`). Under reduced motion nothing
 in the liquid or the light moves.
+
+**Traits (ticket 11).** What each trait draws is data in `potion/traits.ts`: a set of shader
+weights (`cloud`, `swirl`, `pearl`, `glow`, `fleck`) and at most one kind of mote, plus three
+ingredients' own variants (Thundercloud's flecks are silver, Snailshine's swirl is pearly,
+Puffcap's cloud carries spores). A variant holds only while its ingredient keeps that trait, so a
+cut to `clear` or `cloud` drops it. `createLiquid().setLayers` writes the weights into uniform
+arrays of `MAX_POURS`, and `potionBand` blends them with the colour across the same soft edges,
+so no trait reaches past its band's edge. Every term reads `uTime` and adds to the liquid's own
+light before `potionCap`; every `fwidth` is taken before the discard and the trait branches.
+
+- `cloud` (Moonmilk, Puffcap; `murk` until ticket 23): two slow noises, a darker mottle under
+  lighter milky billows, so the band's mean stays on its jar. A cloudy band's edges blend over
+  2.2 times as much (`CLOUD_EDGE`, `bandEdges`'s `soft`), still within 0.45 of the thinner band.
+- `swirl` (Rosehip, Snailshine): L2's domain-warped marbling, with the noise squashed 1.9 times
+  along the surface's up so its streaks lie level in any pose; light veins over a deeper body.
+  `pearl` makes the veins thinner and lays a thin-film shimmer on them and at grazing angles,
+  half as strong away from the candle.
+- `glow` (Emberroot): the liquid's own light and its lit diffuse fall to 0.55 and 0.6 at the
+  silhouette, and a light from inside, 0.55 of the deepened colour times a slowly rising noise
+  and the square of the thickness, fills the middle. At its brightest, 0.87 x (0.4 + 0.55) is
+  under the cap before the knee (a unit test).
+- `glitter` (Starpetal gold `#ffe4a0`, Thundercloud silver `#e4eaff`): fine flecks in the skin
+  (a 1.5 mm cell, six in ten holding a fleck 0.15 to 0.5 mm, never under 0.6 px), each a facet
+  turning slowly: a faint glimmer, and a flash of three times the candle's colour only where the
+  skin faces the candle. The larger flecks are motes (below).
+- `fizz` (Frogfizz): motes only. `clear` (Bluebell): nothing; the clean jewel colour.
+
+**Depth.** The body under its widest point darkens by up to 0.42 times the fifth power of how
+straight down it faces, so the darkening gathers at the foot and leaves a band's middle alone:
+the round flask's bottom (Bluebell) band reads 0.61 of its centre's luminance at its foot (round
+3 of ticket 10, 0.77; L2, 0.65) and its centre within 3 percent of round 3. The nine's centre
+colours stay where round 3 put them or move towards their chips (Emberroot, Moonmilk and Puffcap
+lighter from the glow and the milk).
+
+**Motes.** `stage/LiquidMotes.tsx` draws every point-like trait in one `THREE.Points` draw at
+render order 3, between the liquid and the glass's near half: depth tested and writing no depth,
+so the label and the cork hide them and the near glass tints over them. Its material is built
+once and shares the liquid's own uniforms (the clock, the bands, the eye and the candle), so
+reduced motion and `--freeze` hold it with the liquid. The layout is `motePool`: at most 300
+(`MAX_MOTES`) rest points spread evenly through the whole cavity, 1.2 mm off its wall, seeded,
+built with the mesh. In the vertex shader each point joins the band its rest point lies in along
+the surface's up (`moteBand` is the same rule in TypeScript), so in any pose, leaned or tipped,
+each band holds its share of the pool (85 to 100 of a full bottle's points) and its motes stay
+level with it. A band whose trait has motes shows its program's `density` of them. The programs
+are a table keyed by kind (`MOTE_PROGRAMS`), open for ticket 23's sinking `speck`:
+
+- `fleck`: drifts 0.7 mm about its rest point; a diamond flake 0.5 to 1.15 mm that tumbles and
+  flashes towards the candle on the candle's side.
+- `bubble`: seven in ten rise in streams on a 10 mm lattice across the up, the rest on their own,
+  6 to 12 mm a second from the band's floor, growing a little, fading in at the floor and out at
+  the band's top or the surface: a ring with a glint at its upper left.
+- `spore`: drifts 1.8 mm slowly; a soft round puff 1 to 2.8 mm, pale pink on Puffcap's red.
+
+Each mote fades over its band's soft edges and towards the wall (the cavity's radius, sampled 48
+times up its height), and dims and takes the band's colour through the liquid between it and the
+eye (as far as the wall at its height or the surface, more through milk). It is drawn
+premultiplied with a small cover (0.15 to 0.3), so it adds its light and hides little of the
+liquid: no mote reads as a dark hole. Its size is in millimetres, at least 1.4 device pixels and
+at most 40.
+
+**Still frames.** Everything moves on `uTime` alone, so under `prefers-reduced-motion` the clock's
+moment 0 is the still form: bubbles caught at every height of their rise, flecks turned at every
+angle (a few flashing), spores where they rest. Three of one ingredient draw one continuous
+liquid: every noise is in the bottle's frame and the pool is one spread for the whole bottle, so
+no band repeats another's pattern.
+
+**Telling them apart.** Neighbouring ingredients on the wheel never share a texture: glow beside
+glitter (Emberroot, Starpetal), glitter beside bubbles, bubbles beside a pearly swirl, the swirl
+beside clear (Bluebell), clear beside silver flecks (Thundercloud), flecks beside milk (Moonmilk),
+milk beside a swirl (Rosehip), the swirl beside spores (Puffcap), spores beside glow. The two
+pairs a red-green colour-blind child is likeliest to confuse, Rosehip and Puffcap and Emberroot
+and Puffcap, are veins against soft spores and a lit middle against spores.
+
+**The mixed liquid (ticket 23).** `setLayers` with one layer (the mix's colour, `trait` and main
+ingredient) already fills a whole bottle with that trait, motes and all. For the swirl, the place
+to carry a trait into the mix is `potionBand`'s `PotionTraits` (blend each band's towards the mix's
+by `uMix`, as the colour) and the motes' per-band `uKind` and `uDensity`.
+
+**Cuts.** None.
+
+**The traits' cost.** Measured as below, before and after interleaved: the first visit's close
+look 3.5 to 3.8 ms a frame on a desk and 2.1 to 2.3 ms on a phone viewport; the box stage 1.3 to
+1.4 ms and 1.1 to 1.2 ms. The swirl is the dearest trait (a whole bottle of Snailshine: 4.1 and
+2.5 ms); one draw of at most 300 motes measured within noise.
 
 **The picture (P2).** `capture()` clears to `PICTURE_GROUND` opaque, renders the bare scene at
 2000 px wide and restores the clear colour. Ticket 13's painter lifts that ground back to clear
