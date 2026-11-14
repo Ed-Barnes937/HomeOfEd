@@ -1,15 +1,28 @@
-import { useMemo } from 'react'
+import { Suspense, useMemo, useRef } from 'react'
 
 import { compilePotion, type PotionSpec } from '../potion/compile.ts'
+import { isGold, potionGlowColour, potionName } from '../potion/describe.ts'
 import { potionOutline } from '../potion/outline.ts'
 import { HeldRig, type HeldItem } from './HeldRig.tsx'
-import { PotionMesh } from './PotionMesh.tsx'
-import { boxCentreY, CLAY_RIM, ClayLights, POTION_HALF_WIDTH } from './potionScene.tsx'
+import { CLAY, PotionMesh } from './PotionMesh.tsx'
+import {
+  ApothecaryEnvironment,
+  ApothecaryLights,
+  boxCentreY,
+  CLAY_RIM,
+  ClayLights,
+  ClockTicker,
+  POTION_HALF_WIDTH,
+  PotionToneMapping,
+  useLiquidClock,
+} from './potionScene.tsx'
 import { MM } from './scene.tsx'
 import type { CloseUpProps } from './stage.ts'
 
 /** A tap round a slim neck should still land. */
 const MIN_GIRTH_MM = 30
+/** The close look's lights stand about a bottle's middle; this far down to its foot, scene units. */
+const CLOSE_FOOT_Y = -0.75
 
 export function potionHeldItem(spec: PotionSpec): HeldItem {
   const { widthMm, glass, stopper } = potionOutline(spec)
@@ -33,21 +46,55 @@ export function potionHeldItem(spec: PotionSpec): HeldItem {
 }
 
 /** The close look: the bottle rises from the table, stands up, leans and tips under a finger and rights itself. */
-export function PotionCloseUpStage({ params, reducedMotion, ...rig }: CloseUpProps) {
+export function PotionCloseUpStage({
+  params,
+  reducedMotion,
+  name,
+  ...rig
+}: CloseUpProps & { name?: string }) {
   const spec = useMemo(() => compilePotion(params), [params])
   const item = useMemo(() => potionHeldItem(spec), [spec])
+  const label = useMemo(
+    () => ({ name: name ?? potionName(params), gold: isGold(params) }),
+    [name, params],
+  )
+  const glow = useRef(potionGlowColour(params))
+  glow.current = potionGlowColour(params)
+  const clock = useLiquidClock(reducedMotion)
+  // The rig wants a component; this one closes over the clock and the glow, which it reads as it draws.
+  const Lights = useMemo(
+    () =>
+      CLAY
+        ? ClayLights
+        : function PotionLights() {
+            return <ApothecaryLights clock={clock} glow={glow} footY={CLOSE_FOOT_Y} />
+          },
+    [clock],
+  )
 
   return (
     <HeldRig
       {...rig}
       item={item}
       reducedMotion={reducedMotion}
-      Lights={ClayLights}
-      rimIntensity={CLAY_RIM}
-      environment={null}
+      Lights={Lights}
+      rimIntensity={CLAY ? CLAY_RIM : 0}
+      environment={
+        <>
+          <ClockTicker clock={clock} />
+          {!CLAY && (
+            <>
+              <PotionToneMapping />
+              <Suspense fallback={null}>
+                <ApothecaryEnvironment />
+              </Suspense>
+            </>
+          )}
+        </>
+      }
       effects={null}
     >
-      {(_, up) => <PotionMesh spec={spec} upFrom={up} />}
+      {(_, up) => <PotionMesh spec={spec} upFrom={up} clock={clock} label={label} />}
     </HeldRig>
   )
 }

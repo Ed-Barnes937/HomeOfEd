@@ -1,7 +1,7 @@
 // Screenshots of the real stages on the real GPU (ANGLE Metal), for judging by eye.
 // node apps/armoury/scripts/gpu-shots.mjs <baseUrl> <outDir> <set.json> [only,names] [--picture] [--reduced-motion]
 //   [--clay] [--views=desk,phone] [--box-only] [--close=1200,7000] [--focus=tip,hilt] [--focus-only] [--rolls=20,-40]
-//   [--leans=30,-45] [--tips=20,-30] [--face]
+//   [--leans=30,-45] [--tips=20,-30] [--face] [--freeze=1.2]
 // The set file is { "<name>": { "kind": "wand" | "sword" | "potion", "params": { ... } } }.
 // A potion opens at /potions; its close frames default to 100 and 400 ms (rising) and 1200 and 4800 (held), and
 // it skips the zoom: --leans and --tips shoot it while the drag still holds it (lean<deg>, tip<deg>; a lean is
@@ -9,6 +9,7 @@
 // back (r<ms> after). --face touches the bottle as it starts to rise, before its idle turn begins, so its label
 // faces the camera in every close frame, lean and tip. A potion's close frames are timed from the lift, the close
 // look's first frame; when each was taken, from the tap, lands in <name>-<view>-close.txt.
+// --freeze=<seconds> holds a potion's liquid clock (and the candle's flicker) at that moment in every frame (dev server only).
 // --clay draws a sword or a potion in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
 // about its length, or with an s (s45) swings it, tip away.
@@ -46,6 +47,7 @@ const rolls = options.rolls ? options.rolls.split(',') : []
 const leans = options.leans ? options.leans.split(',').map(Number) : []
 const tips = options.tips ? options.tips.split(',').map(Number) : []
 const face = flags.has('--face')
+const freeze = options.freeze ?? null
 // The close look rolls, leans and tips 0.007 radians per pixel dragged.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
 // A drag only turns the item once it has travelled further than this.
@@ -97,7 +99,10 @@ try {
       const page = await ctx.newPage()
       const shot = (what) => join(out, `${name}-${view.tag}-${what}.png`)
       // A wand opens at the root as it always has; a sword or a potion goes straight to its shop.
-      const path = `${SHOP_PATHS[kind]}${clay && kind !== 'wand' ? '?clay' : ''}`
+      const search = new URLSearchParams()
+      if (clay && kind !== 'wand') search.set('clay', '')
+      if (freeze !== null && kind === 'potion') search.set('freeze', freeze)
+      const path = `${SHOP_PATHS[kind]}${search.size ? `?${search}` : ''}`
       await page.goto(`${base}${path}#w=${token(kind, params)}`)
 
       const renderer = await page.evaluate(() => {
@@ -135,6 +140,12 @@ try {
           if (kind !== 'potion' || !face) return
           // A drag just past the tap slop counts as a touch, which stops the idle turn; it leans the bottle 0.4 degrees.
           await page.getByRole('dialog').locator('canvas').waitFor()
+          // Before the lift a touch lands on nothing the rig holds and reads as a tap, which mixes a full bottle.
+          await page.waitForFunction(
+            () => document.querySelector('[data-testid="counter"][data-empty]'),
+            null,
+            { polling: 'raf' },
+          )
           const x = view.viewport.width / 2
           const y = view.viewport.height * 0.3
           await page.mouse.move(x, y)
