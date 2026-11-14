@@ -108,3 +108,4 @@ read as a soft red cloud, never as murk.
 
 ## Comments
 - 2026-11-13 planner (re-plan, E13-E17): three layers at most; Puffcap (spores) replaces Bog murk (specks); the `murk` trait and the mixed state belong to ticket 23, which reuses these trait programs for a whole bottle.
+- 2026-11-14 orchestrator, from the final visual gate of tickets 10 and 13 (`shots/10/r3/review.md`): the liquids are now a step brighter and flatter (they match their jars; the round flask's bottom band reads 0.77 of centre brightness at its foot, was 0.65). Restore L2's depth here: darken towards the lower body and the edges (bottom band back to about 0.65) without changing the centre colour; glitter and swirl do the rest; keep sparkle on the candle's side. Thundercloud reads ink indigo in the bottle against a violet jar chip (a taste call left to Ed). Read the notes for this ticket in `reviews/10-r1.md`, `10-r2.md` and `10-r3.md` too.
