@@ -136,16 +136,31 @@ const smoothstep = (t: number) => {
   return u * u * (3 - 2 * u)
 }
 
-/** From 0 to 1, how strongly the item's own flourish holds it upright, `sinceFlourish` seconds in; under reduced motion a step, with no ease. */
+/**
+ * From 0 to 1, how strongly the item's own flourish holds it upright, `sinceFlourish` seconds in;
+ * under reduced motion a step, with no ease. A drag lets it go: `back` is the moment in the
+ * flourish it comes back from, Infinity while a finger holds the item (ADR 0111).
+ */
 export function uprightFlourishWeight(
   sinceFlourish: number,
   flourishSeconds: number,
   reducedMotion: boolean,
+  back = 0,
 ): number {
-  if (!(sinceFlourish >= 0 && sinceFlourish < flourishSeconds)) return 0
+  if (!(sinceFlourish >= 0 && sinceFlourish < flourishSeconds && sinceFlourish >= back)) return 0
   if (reducedMotion) return 1
   return Math.min(
-    smoothstep(sinceFlourish / EASE_SECONDS),
+    smoothstep((sinceFlourish - back) / EASE_SECONDS),
     smoothstep((flourishSeconds - sinceFlourish) / EASE_SECONDS),
   )
+}
+
+/** The pose a drag starts from when it takes the item from a flourish holding it upright by `weight`: the pose as drawn. */
+export function takeFromHold(pose: UprightPose, weight: number): UprightPose {
+  return {
+    lean: pose.lean * (1 - weight),
+    tip: pose.tip * (1 - weight),
+    leanVelocity: 0,
+    tipVelocity: 0,
+  }
 }

@@ -23,6 +23,7 @@ import {
   leanShiftMm,
   rightUpright,
   sweptWidthMm,
+  takeFromHold,
   uprightFlourishWeight,
   type Hold,
   type Outline,
@@ -121,6 +122,8 @@ interface Handling {
   waveAt: number | null
   /** An upright item's lean and tip, which right themselves once let go. */
   upright: UprightPose
+  /** Seconds into the flourish its upright hold comes back from after a drag; Infinity while a finger holds the item. */
+  holdBack: number
 }
 
 type Rect = Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>
@@ -350,7 +353,9 @@ function Rig({
     const wave = waving ? wavePose(sinceWave / item.flourishScale) : null
     streaking.current = wave?.trail ?? false
     const flourishUpright =
-      own && upright ? uprightFlourishWeight(sinceWave, flourishSeconds, reducedMotion) : 0
+      own && upright
+        ? uprightFlourishWeight(sinceWave, flourishSeconds, reducedMotion, h.holdBack)
+        : 0
     if (own ? sinceWave >= flourishSeconds : !waving) h.waveAt = null
 
     const e = easeInOut(f.t)
@@ -470,6 +475,7 @@ export function HeldRig({
       tilt: 0,
       waveAt: null,
       upright: { lean: 0, tip: 0, leanVelocity: 0, tipVelocity: 0 },
+      holdBack: 0,
     },
   }))
   const pointers = useRef(new Map<number, { x: number; y: number }>())
@@ -480,7 +486,10 @@ export function HeldRig({
     (): CloseUpHandle => ({
       flourish: () => {
         const now = three.current?.clock.elapsedTime ?? 0
+        const g = gesture.current
         handling.current.waveAt = now
+        const dragging = handling.current.grabbed && !g.pinched && g.travelled > TAP_SLOP_PX
+        handling.current.holdBack = dragging ? Infinity : 0
         setFlourishAt(now)
       },
       putBack: () =>
@@ -492,6 +501,23 @@ export function HeldRig({
     }),
     [boxPose],
   )
+
+  const sinceFlourish = () => {
+    const { waveAt } = handling.current
+    return waveAt === null ? Infinity : (three.current?.clock.elapsedTime ?? 0) - waveAt
+  }
+  const holdWeight = () =>
+    item.hold === 'upright' && item.flourish === 'own'
+      ? uprightFlourishWeight(
+          sinceFlourish(),
+          item.flourishSeconds ?? 0,
+          reducedMotion,
+          handling.current.holdBack,
+        )
+      : 0
+  const letHoldBack = () => {
+    if (handling.current.holdBack === Infinity) handling.current.holdBack = sinceFlourish()
+  }
 
   const landsOnItem = (clientX: number, clientY: number) => {
     const state = three.current
@@ -538,6 +564,10 @@ export function HeldRig({
     if (g.travelled <= TAP_SLOP_PX || g.pinched) return
     h.touched = true
     if (item.hold === 'upright') {
+      if (h.holdBack !== Infinity) {
+        h.upright = takeFromHold(h.upright, holdWeight())
+        h.holdBack = Infinity
+      }
       h.upright = dragUpright(h.upright, dx, dy)
       g.lastMove = e.timeStamp
       return
@@ -554,6 +584,7 @@ export function HeldRig({
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     if (!pointers.current.delete(e.pointerId)) return
     handling.current.grabbed = pointers.current.size > 0
+    if (!handling.current.grabbed) letHoldBack()
     const g = gesture.current
     // A pause before letting go means no flick.
     if (e.timeStamp - g.lastMove > 80) handling.current.spin.set(0, 0)
@@ -571,6 +602,7 @@ export function HeldRig({
       onPointerCancel={(e) => {
         pointers.current.delete(e.pointerId)
         handling.current.grabbed = pointers.current.size > 0
+        if (!handling.current.grabbed) letHoldBack()
         gesture.current.pinched = true
       }}
       onWheel={(e) => {

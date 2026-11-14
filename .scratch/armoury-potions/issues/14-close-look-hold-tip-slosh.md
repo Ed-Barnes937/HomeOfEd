@@ -1,6 +1,6 @@
 # 14 - Close look I: held upright, tipped, sloshing
 
-**Status:** ready-for-agent (waits for ticket 10)
+**Status:** done (merged into `armoury-potions`; review and gate `reviews/14-r1.md` PASS in round 1)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 10 (04 is done)
@@ -114,3 +114,4 @@ still.
 - 2026-11-13 orchestrator, from the review of ticket 21: the close look now plays the show on arrival, so judge free play (and `gpu-shots --settle`) after about 5.2 s. The slosh must take three bands becoming one with no jump in level.
 - 2026-11-14 orchestrator, from ticket 10's build: with `--face`, the shots script now waits for the lift before its touch; without that, drags after the touch often failed (a lean that did not lean, a drag read as a tap), and one `tip70` trial still did not tip. Ticket 10's code review (`reviews/10-r1.md`) says whether that is the script's timing or a race in the rig's drag handling that a child's finger could hit; if it is the rig, fix it here first.
 - 2026-11-14 orchestrator, from ticket 10's code review (`reviews/10-r1.md`, item 6): the rig has no race. By design (ADR 0105) the potion's arrival flourish holds the bottle upright for 4 s; the flourish is timed in real seconds but arrival waits on frame time capped at 0.05 s a frame, so shader compiling on the first frames pushes it later, and a drag in that window does nothing. A child dragging in the first 4 seconds sees nothing happen: decide here whether that is right now that the show plays on arrival (for example let a drag end the hold, or shorten it).
+- 2026-11-14 orchestrator: round 1 built (Opus; 93291b90 on `potions/14-hold-slosh`). A drag takes the bottle from the show's upright hold at once and the hold returns over 0.3 s on release; the slosh is a damped pendulum (0.6 s, damping 0.3, capped at 12 degrees) driven by the bottle's turn rate, written to `surfaceNormal`; level and still under reduced motion; ADR 0111. Strips in `shots/14/r1/`. In review (`reviews/14-r1.md`, code and gate together).

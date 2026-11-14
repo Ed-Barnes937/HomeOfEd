@@ -10,6 +10,7 @@ import {
   rightUpright,
   TIP_MAX,
   sweptWidthMm,
+  takeFromHold,
   UPRIGHT_PER_PX,
   uprightFlourishWeight,
   type Outline,
@@ -181,6 +182,52 @@ describe('how strongly a flourish holds the item upright', () => {
       expect(uprightFlourishWeight(t, SECONDS, true)).toBe(1)
     for (const t of [-1, -0.01, SECONDS, SECONDS + 0.01, Infinity, NaN])
       expect(uprightFlourishWeight(t, SECONDS, true)).toBe(0)
+  })
+
+  test('not at all while a drag holds the item, at any moment of it, with or without reduced motion', () => {
+    for (const reducedMotion of [false, true])
+      for (const t of [0, 0.15, 1, SECONDS / 2, SECONDS - 0.15])
+        expect(uprightFlourishWeight(t, SECONDS, reducedMotion, Infinity)).toBe(0)
+  })
+
+  test('let go mid-flourish, it comes back over 0.3 s without a jump, then holds fully', () => {
+    const back = 1
+    expect(uprightFlourishWeight(back, SECONDS, false, back)).toBe(0)
+    const step = 1 / 240
+    let last = 0
+    for (let t = back; t <= back + 0.4; t += step) {
+      const w = uprightFlourishWeight(t, SECONDS, false, back)
+      expect(Math.abs(w - last)).toBeLessThan(0.025)
+      last = w
+    }
+    expect(uprightFlourishWeight(back + 0.15, SECONDS, false, back)).toBeGreaterThan(0)
+    expect(uprightFlourishWeight(back + 0.15, SECONDS, false, back)).toBeLessThan(1)
+    expect(uprightFlourishWeight(back + 0.3, SECONDS, false, back)).toBeCloseTo(1, 9)
+  })
+
+  test('let go under reduced motion, it holds again at once', () => {
+    expect(uprightFlourishWeight(0.99, SECONDS, true, 1)).toBe(0)
+    expect(uprightFlourishWeight(1, SECONDS, true, 1)).toBe(1)
+  })
+
+  test('never let go of, as before', () => {
+    for (const t of [0, 0.1, 1, SECONDS - 0.1])
+      expect(uprightFlourishWeight(t, SECONDS, false, 0)).toBe(
+        uprightFlourishWeight(t, SECONDS, false),
+      )
+  })
+})
+
+describe('a drag taking an item from its flourish', () => {
+  test('starts from the pose as drawn, so nothing jumps', () => {
+    const pose = { lean: 0.5, tip: -0.2, leanVelocity: 2, tipVelocity: 1 }
+    const taken = takeFromHold(pose, 0.75)
+    expect(taken.lean).toBeCloseTo(0.125, 9)
+    expect(taken.tip).toBeCloseTo(-0.05, 9)
+    expect(taken.leanVelocity).toBe(0)
+    expect(taken.tipVelocity).toBe(0)
+    expect(takeFromHold(pose, 1)).toMatchObject({ lean: 0, tip: -0 })
+    expect(takeFromHold(pose, 0)).toMatchObject({ lean: 0.5, tip: -0.2 })
   })
 })
 
