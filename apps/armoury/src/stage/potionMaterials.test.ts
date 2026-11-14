@@ -123,6 +123,14 @@ describe('the glass passes', () => {
     }
   })
 
+  it("draw both faces in one pass, so gl_FrontFacing is each face's own facing", () => {
+    for (const pass of [glass.nearTint, glass.farTint, glass.nearLight, glass.farLight]) {
+      expect(pass.side).toBe(THREE.DoubleSide)
+      expect(pass.transparent).toBe(true)
+      expect(pass.forceSinglePass).toBe(true)
+    }
+  })
+
   it("keep three's own defines on the light passes, and patch every chunk they meant to", () => {
     expect(glass.nearLight.defines).toEqual({ STANDARD: '', PHYSICAL: '', NEAR_PASS: 'true' })
     expect(glass.farLight.defines).toEqual({ STANDARD: '', PHYSICAL: '', NEAR_PASS: 'false' })

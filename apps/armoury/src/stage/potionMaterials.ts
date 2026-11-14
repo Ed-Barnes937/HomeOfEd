@@ -171,7 +171,7 @@ export const STOPPER_GLASS = (look: GlassLook): GlassLook => ({
 /** Back the far wall's light off, so the candle shows once in the near wall, not again inside the far one. */
 const FAR_LIGHT = 0.15
 /** The cavity's own surface reflects less than the outside. */
-const INNER_LIGHT = 0.06
+const INNER_LIGHT = 0.02
 
 const GLASS_PARS = /* glsl */ `
 varying float vInner;
@@ -224,6 +224,7 @@ function glassTint(look: GlassLook, near: boolean): THREE.ShaderMaterial {
     vertexShader: GLASS_TINT_VERTEX,
     fragmentShader: GLASS_TINT_FRAGMENT,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
     transparent: true,
     depthWrite: false,
     toneMapped: false,
@@ -246,6 +247,7 @@ function glassLight(look: GlassLook, near: boolean): THREE.MeshPhysicalMaterial 
     clearcoatRoughness: look.roughness * 0.7,
     envMapIntensity: look.env,
     side: THREE.DoubleSide,
+    forceSinglePass: true,
     transparent: true,
     depthWrite: false,
     blending: THREE.CustomBlending,
@@ -368,8 +370,8 @@ export function bandEdges(
 
 /** The liquid's look: L2's numbers from the spike, the cloud and the light through it. */
 export const LIQUID = {
-  depth: 1.45,
-  self: 0.12,
+  depth: 1.25,
+  self: 0.4,
   diffuse: 0.5,
   /** The candle's light out of the far side of the liquid. */
   thru: 0.6,
@@ -394,6 +396,7 @@ uniform float uTime, uFloor, uDepth, uSelf, uDiffuse, uThru, uCap, uMilkSheen, u
 uniform vec3 uKeyDir, uKeyColour, uBackDir, uBackColour;
 varying vec3 vBottle;
 varying vec3 vUpView;
+varying vec3 vAxisView;
 ${SOFT_CAP_GLSL}
 ${NOISE_GLSL}
 // The bands' colour at height h along the surface's up: one function of h, so a mix can blend it later.
@@ -438,7 +441,9 @@ liqAlbedo *= mix(0.8, 1.04, liqDown) * (1.0 + 0.05 * potionNoise(liqP * 0.02 + v
 `
 
 const LIQUID_LIGHT = /* glsl */ `
-float liqNdv = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+vec3 liqView = normalize(vViewPosition);
+vec3 liqAcrossView = liqView - dot(liqView, liqAxis) * liqAxis;
+float liqNdv = clamp(dot(normal, liqSurface ? liqView : normalize(liqAcrossView)), 0.0, 1.0);
 float liqThick = liqSurface ? 1.0 : liqNdv;
 vec3 liqDeep = pow(max(liqAlbedo, 1e-4), vec3(mix(1.0, uDepth, liqThick * (1.0 - 0.75 * liqCloud))));
 float liqUp = clamp((liqH - uFloor) / max(liqTop - uFloor, 1e-3), 0.0, 1.0);
@@ -531,11 +536,11 @@ function liquidMaterial(uniforms: LiquidUniforms, surface: boolean): THREE.MeshP
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform vec3 uUp;\nvarying vec3 vBottle;\nvarying vec3 vUpView;',
+        '#include <common>\nuniform vec3 uUp;\nvarying vec3 vBottle;\nvarying vec3 vUpView;\nvarying vec3 vAxisView;',
       )
       .replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\nvBottle = position;\nvUpView = normalize(normalMatrix * uUp);',
+        '#include <begin_vertex>\nvBottle = position;\nvUpView = normalize(normalMatrix * uUp);\nvAxisView = normalize(normalMatrix * vec3(0.0, 0.0, 1.0));',
       )
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${LIQUID_PARS}`)
@@ -551,12 +556,19 @@ diffuseColor.a = liqCut;`,
       )
       .replace(
         '#include <normal_fragment_maps>',
-        '#include <normal_fragment_maps>\nif (liqSurface) normal = vUpView;',
+        `#include <normal_fragment_maps>
+vec3 liqAxis = normalize(vAxisView);
+vec3 liqAcross = normal - dot(normal, liqAxis) * liqAxis;
+if (liqSurface) normal = vUpView;
+else if (LIQ_SURFACE) normal.x = -normal.x;
+// The body is lit by its turn about the axis alone, so the shoulder and the foot read as more of the same liquid.
+else if (dot(liqAcross, liqAcross) > 1e-4) normal = normalize(mix(normal, normalize(liqAcross), 0.75));`,
       )
       .replace(
         '#include <aomap_fragment>',
         `#include <aomap_fragment>
 reflectedLight.directSpecular = vec3(0.0);
+if (LIQ_SURFACE && !liqSurface) reflectedLight.indirectSpecular = vec3(0.0);
 ${LIQUID_LIGHT}`,
       )
       .replace(

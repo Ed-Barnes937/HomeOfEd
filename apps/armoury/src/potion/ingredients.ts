@@ -46,7 +46,7 @@ export const INGREDIENTS: readonly Ingredient[] = [
     label: 'Starpetal',
     word: 'Starpetal',
     wheel: 1,
-    colour: '#f8d14f',
+    colour: '#f5bd3a',
     trait: 'glitter',
     effect: 'glowing',
     lore: 'Starpetals only open after dark, and then they glow.',
