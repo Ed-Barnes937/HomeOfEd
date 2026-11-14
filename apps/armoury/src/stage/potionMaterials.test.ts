@@ -9,11 +9,14 @@ import { MAX_POURS, potionSchema } from '../potion/potionSchema.ts'
 import { normalise } from '../engine/schema.ts'
 import { withPours } from '../potion/pours.ts'
 import { tagLayout } from '../potion/geometry.ts'
-import type { IngredientId } from '../potion/ingredients.ts'
+import { INGREDIENTS, type IngredientId, type Trait } from '../potion/ingredients.ts'
+import { traitLook } from '../potion/traits.ts'
+import { srgbToLinear } from '../items/colour.ts'
 import { floorAt, levelsAt, levelTable } from '../potion/tipped.ts'
 import { BLOOM_THRESHOLD } from './stage.ts'
 import {
   bandEdges,
+  CLOUD_EDGE,
   createGlass,
   createLiquid,
   freezeFrom,
@@ -21,13 +24,17 @@ import {
   LABEL_LOOKS,
   labelLines,
   LiquidClock,
+  LIQUID,
   PAPERS,
   paperMask,
   REST_CAP,
   RESTING_EMISSIVE,
   softCap,
   STOPPER_LOOKS,
+  TRAIT_GAIN,
 } from './potionMaterials.ts'
+
+const TRAITS: Trait[] = ['clear', 'cloud', 'fizz', 'glitter', 'glow', 'swirl', 'murk']
 
 const optionsOf = (key: string) => {
   const param = potionSchema.params.find((p) => p.key === key)
@@ -237,15 +244,71 @@ describe('the liquid', () => {
     liquid.dispose()
   })
 
-  it('draws every band as clear or cloud', () => {
+  it("writes each band's trait into its uniforms, an ingredient's own variant with it", () => {
     const liquid = createLiquid()
     liquid.setLayers([
-      { colour: '#ece6f4', trait: 'cloud' },
-      { colour: '#d9467a', trait: 'swirl' },
-      { colour: '#f2c14e', trait: 'glitter' },
+      { colour: '#c7b2f0', trait: 'cloud', ingredient: 'moonmilk' },
+      { colour: '#7fd6c8', trait: 'swirl', ingredient: 'snailshine' },
+      { colour: '#5a4ab8', trait: 'glitter', ingredient: 'thundercloud' },
     ])
-    expect(liquid.uniforms.uCloud.value).toEqual([1, 0, 0])
-    for (const c of liquid.uniforms.uColour.value) expect(rgbInUnit(c.toArray())).toBe(true)
+    const u = liquid.uniforms
+    expect(u.uCloud.value).toEqual([1, 0, 0])
+    expect(u.uSwirl.value).toEqual([0, 1, 0])
+    expect(u.uPearl.value).toEqual([0, 1, 0])
+    expect(u.uFleck.value).toEqual([0, 0, 1])
+    expect(u.uGlow.value).toEqual([0, 0, 0])
+    const silver = u.uFleckTint.value[2]!.toArray()
+    expect(Math.max(...silver) - Math.min(...silver)).toBeLessThan(0.25)
+    for (const c of u.uColour.value) expect(rgbInUnit(c.toArray())).toBe(true)
+    liquid.setLayers([{ colour: '#f0892a', trait: 'glow' }])
+    expect(u.uGlow.value[0]).toBe(1)
+    expect(u.uCloud.value[0]).toBe(0)
+    liquid.dispose()
+  })
+
+  it('has a shader branch for every shading a trait asks for, before the cap', () => {
+    const liquid = createLiquid()
+    const fragment = compiled(liquid.body).fragmentShader
+    for (const trait of TRAITS)
+      for (const [name, weight] of Object.entries(traitLook(trait).shading))
+        if (weight > 0)
+          expect(fragment, `${trait} ${name}`).toMatch(
+            new RegExp(`(t|liqTraits)\\.${name} > 0\\.01`),
+          )
+    expect(fragment.indexOf('liqTraits.glow > 0.01')).toBeLessThan(
+      fragment.indexOf('outgoingLight = potionCap(outgoingLight, uCap);'),
+    )
+    liquid.dispose()
+  })
+
+  it('keeps the glow from inside under the cap on the brightest glowing ingredient', () => {
+    const glowing = INGREDIENTS.filter((i) => traitLook(i.trait, i.id).shading.glow > 0)
+    expect(glowing.length).toBeGreaterThan(0)
+    const peak = Math.max(...glowing.flatMap((i) => srgbToLinear(i.colour)))
+    expect(peak * (LIQUID.self + TRAIT_GAIN.glow)).toBeLessThan(REST_CAP)
+  })
+
+  it('softens the edge where a cloudy band meets another, still in order', () => {
+    const plain = bandEdges([20, 50, 90], 5)
+    const soft = bandEdges([20, 50, 90], 5, [], 3, [1, CLOUD_EDGE, 1])
+    expect(soft[0]).toBeCloseTo(plain[0]! * CLOUD_EDGE)
+    expect(soft[1]).toBeCloseTo(plain[1]! * CLOUD_EDGE)
+    expect(bandEdges([20, 50, 90], 5, [], 3, [CLOUD_EDGE, 1, 1])[1]).toBeCloseTo(plain[1]!)
+    for (const edge of bandEdges([6, 6.4, 30], 5, [], 3, [CLOUD_EDGE, CLOUD_EDGE, CLOUD_EDGE]))
+      expect(edge).toBeLessThanOrEqual(0.45 * 0.4 + 1e-9)
+  })
+
+  it("softens a cloudy band's edges once its layers are set", () => {
+    const liquid = createLiquid()
+    liquid.setLayers([
+      { colour: '#d42c2c', trait: 'cloud', ingredient: 'puffcap' },
+      { colour: '#5b8def', trait: 'clear' },
+      { colour: '#5b8def', trait: 'clear' },
+    ])
+    liquid.setSurface(new THREE.Vector3(0, 0, 1), [20, 50, 90], 5)
+    expect(liquid.uniforms.uEdges.value).toEqual(
+      bandEdges([20, 50, 90], 5, [], 3, [CLOUD_EDGE, 1, 1]),
+    )
     liquid.dispose()
   })
 })
