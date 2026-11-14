@@ -86,7 +86,7 @@ export const INGREDIENTS: readonly Ingredient[] = [
     label: 'Thundercloud',
     word: 'Thundercloud',
     wheel: 5,
-    colour: '#4b3f8f',
+    colour: '#5a4ab8',
     trait: 'glitter',
     effect: 'whirling',
     lore: 'Thundercloud rumbles when it is cross.',

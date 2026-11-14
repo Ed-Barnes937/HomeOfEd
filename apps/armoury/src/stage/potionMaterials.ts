@@ -154,7 +154,7 @@ export const GLASS_LOOKS: Record<GlassId, GlassLook> = {
   sea: tinted(GLASS_TINTS.sea, 0.42, 0.1),
   amber: tinted(GLASS_TINTS.amber, 0.45, 0.12),
   violet: tinted(GLASS_TINTS.violet, 0.4, 0.12),
-  smoky: { ...tinted(GLASS_TINTS.smoky, 0.3, 0.05), through: [0.62, 0.61, 0.63] },
+  smoky: { ...tinted(GLASS_TINTS.smoky, 0.3, 0.08), through: [0.52, 0.51, 0.54] },
 }
 
 /** The glass stopper: the same glass, solid, so it hides more and carries more light. */
