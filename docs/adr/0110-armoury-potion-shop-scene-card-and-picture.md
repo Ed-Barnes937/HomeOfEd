@@ -42,7 +42,13 @@ smithy's bricks: label plates of different widths, some blank, one gone (its
 nail holes and an unfaded patch), two chalked, rings and knobs, some two columns
 wide, deeper rows lower down, and a few left standing open (a dark gap above,
 a lit lip) with a sprig or a rolled paper poking out. Their light is unchanged:
-detail for a second look, not more brightness. The light is in the drawing: the candle's warm
+detail for a second look, not more brightness. The bottle is the first read: apart from the
+flame and the card, nothing in the room is brighter than the bottle's brightest band (a pale
+potion, measured on the GPU). Round 2's gate found the candle's wax and the green glow louder
+than the bottle, so the wax is about 30 percent darker (warm, not grey), the candle's dish,
+the wax pool at its foot, the spoon and the spilled petals are quieter, and the left green
+flask is hushed (`jar`'s `hush`: its glow and shine 40 percent down, its liquid 20); the violet
+jar and the right green bottle are as they were. The light is in the drawing: the candle's warm
 pool on the wall and the table, a faint cool wash from the high right, and the
 room falling dark away from the candle and toward the top, where the header's
 words sit. Grain comes from the smithy's noise tiles (`smithy/grain.ts`). The art
@@ -58,7 +64,13 @@ the scene's height on desk and 0.62 on a phone (O17), at 56 and 60 percent of it
 width, but rises on a short scene so the card that wraps most (found by setting
 every generated name and tag line on the card) and the hint still fit: on desk
 280 px and on a phone 176 px are kept below the foot. On desk the foot also
-stands far enough right that the candle's dish is never cut. On a phone the box
+stands far enough right that the candle's dish is never cut, and far enough left that the
+bottle's widest point stands 24 px inside the scene's right edge with at least half its shadow
+in view (`bottleOnTable`'s `widthMm` and `shadowMidMm`, set as `--half-w` and `--shadow-mid`).
+Where both cannot hold, at 900 px wide beside the panel, the box stage and the board shrink
+until they do for the furthest-reaching bottle (`--reach-half-w`, `--reach-shadow-mid`), so the
+room keeps one scale whichever bottle stands there (round 2's gate found the bottle against
+the edge at 900, its shadow cut). On a phone the box
 stage shrinks with the foot so the tallest stopper stays below the header's
 buttons, and the card takes the scene's width so the longest texts wrap to fewer
 lines. The full-width card's 2.2 degree tilt lifts its top edge under the bottle
@@ -110,7 +122,15 @@ block and holds every pair the shop uses at WCAG AA: panel text, lore and
 numerals on the panel, the Keep button, each card ink on the darker end of its
 paper (cream and gilt), the hint and ink on the lit scene, and the focus ring (3:1).
 
-**The picture (P2).** `paintApothecaryCard` draws the same room (preloaded as an
+**The picture (P2).** Every bottle is drawn 0.44 of the picture tall, foot to stopper allowance
+(`pictureFraming`): the room is drawn at the bottle's scale about its foot, so the foot stays
+on the table line and the card where it is, and the cabinet doors are a quiet ground behind it.
+The candle is out of frame; its light still comes from the left. Round 2 drew every bottle at
+the box stage's one scale, so the teardrop was 27 percent of the picture and the candle carried
+as much weight; Ed picked P2, where the bottle fills the frame above the card. One scale for
+every bottle would put the tallest into the wordmark band and leave the shortest small, so each
+is framed on its own; a unit test holds every shape and neck at 40 percent or more with its top
+below the wordmark. `paintApothecaryCard` draws the same room (preloaded as an
 image on the shop's first visit, with the flame and without grain), the candle's
 light, the bottle's shadow and caustic from `bottleOnTable`, then the capture on
 the base line, and a vignette after. The capture is drawn over `PICTURE_GROUND`

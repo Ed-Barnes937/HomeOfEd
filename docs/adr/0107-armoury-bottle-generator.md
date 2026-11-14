@@ -114,7 +114,10 @@ and asked for changes to the bottle's dressing. In ring diameters D (the lip rin
 diameter, 18 to 22 mm):
 
 - **The banner wraps 120 degrees** (was 140) and is 18 mm high (was 22), so both notched ends sit
-  inside the front silhouette and more of the pours shows above and below.
+  inside the front silhouette and more of the pours shows above and below. On the round flask
+  (ticket 10's gate, round 2) it wraps 100 degrees, is 12 mm high and sits 5 mm below the widest
+  band: the round flask's middle pours fill that band, and the 18 mm banner hid the whole middle
+  layer of three. About half of that layer's front now shows (at least 40 percent, a unit test).
 - **The tag hangs like a luggage tag.** Its top hangs 0.66 to 0.71 neck diameters below the
   string's loop (0.75 by the hole, which is 3 mm below the top), resting on the shoulder or the
   upper bulb (the hang search starts 0.5 mm off the glass); it is rolled 10 degrees in its own

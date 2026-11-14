@@ -49,14 +49,21 @@ glass's cross-section along the view is convex. The glass stopper is solid: its 
 gourd's waist is concave. Tipped towards the viewer, the lower bulb's top faces the eye
 but lies behind the upper bulb's liquid, so it is drawn over it: a faint glass outline across
 the upper band, no tinted patch. No two-pass split can order a concave body; it is accepted.
-The far half's light is backed off to 0.15 of the near half's (`FAR_LIGHT`, about a seventh),
-and the cavity's lining reflects 0.06 of the outside's (`INNER_LIGHT`, about a seventeenth),
-so the candle shows once in the glass rather than as two flames side by side (the spike's
-"two candles"). The glass takes no specular from the lamps either: the candle's point light
+Every glass pass sets `forceSinglePass`. Without it three draws a transparent double-sided
+material as a back-face pass and then a front-face pass, flipping the winding for the first,
+so `gl_FrontFacing` read true on back faces: the far outer wall drew in the near pass at full
+light (normals turned to face the eye), and the near lining drew in the far pass. That was
+round 2's second candle, mirrored across the bottle with its own halo. The far half's light is
+backed off to 0.15 of the near half's (`FAR_LIGHT`, about a seventh), and the cavity's lining
+reflects 0.02 of the outside's (`INNER_LIGHT`, a fiftieth; it was 0.06, which drew a second
+glint beside the first once the lining was in front), so the candle shows once in the glass
+rather than as two flames side by side (the spike's "two candles"). The glass takes no specular from the lamps either: the candle's point light
 and the environment's flame would land in different places and read as two candles too, so
 the environment's flame is the one reflection. The light passes merge their `NEAR_PASS`
 define into `MeshPhysicalMaterial`'s own `STANDARD` and `PHYSICAL` defines rather than replace
-them; with the glass's specular and IOR at three's defaults that changes no pixel.
+them; with the glass's specular and IOR at three's defaults that changes no pixel. The liquid's
+two materials merge the same way, which made the body's `specularIntensity` 0.12 take effect (it
+had been ignored): its reflections are fainter than round 1's.
 
 **Glass tints.** Clear is G1. Sea, amber and violet lean what the glass lets through towards
 their `GLASS_TINTS` colour (about 40 percent), take that colour into the edge and the rim, and
@@ -88,7 +95,17 @@ Every band is drawn as its trait's base: `cloud` and `murk` are a slow milky noi
 colour where the eye looks through more liquid, darker at the silhouette, the candle's light out
 of the far side, the cool light through it from behind, a pearly sheen on milk), plus a gentle
 darkening towards the floor and a slow 5 percent variation in a clear liquid, so a clear band
-has volume instead of reading as paint. The level surface (which round 1 never drew: its look
+has volume instead of reading as paint. Round 2's gate found the liquid duller than its jar:
+Starpetal read khaki (value 0.50, green 0.74 of red) where the panel's chip is bright yellow,
+and every liquid was a darker, redder cousin of its chip. The deepening exponent is 1.25 (L2's
+1.45 pushed each colour towards its strongest channel, yellow to orange, orange to red) and the
+liquid's own glow is 0.4 of its deepened colour (was 0.12), so the candle's orange light no
+longer sets the hue; all nine now read as their jars in the close look and the box. The body
+is lit and shaded by its turn about the bottle's axis (its normal's part across the axis, three
+quarters of the way from the true normal), so a shoulder or a foot reads as more of the same
+liquid: tipped towards the viewer, the square-shouldered bottle's shoulder no longer shows as a
+lighter crescent with a curved edge, a cup's rim. Seen from below, the surface pass takes no
+reflection and mirrors its normal to the front's, so it carries on the band in front of it. The level surface (which round 1 never drew: its look
 then came from the far wall's inside) is the top band at full depth, lit at 0.9 of the body's
 diffuse with the body's own glow at 0.85, so its tone carries on from the liquid under it; a
 crisp dark ellipse (0.4) read as the open mouth of a cup. Over that, a soft sheen: the cool
@@ -125,7 +142,10 @@ glow colour sits low in front of the bottle so the paper and stopper pick up a t
 liquid's colour; the room art and the picture's painter draw the pool of that light on the table
 (ticket 13). The environment is drei lightformers only: the candle's flame and its warm wash on
 the left, a warm table bounce below, the dim room behind, cool panels high on the right and
-dark above. The spike's dim studio map under them was dropped: its softboxes showed as stray
+dark above. The materials' `envMapIntensity` values (the glass's 1.5, the liquid's 1.6 and 0.5)
+have no effect: three uses `scene.environmentIntensity` (1) for any material that has no
+`envMap` of its own, so every potion material reflects the lightformers at 1, as the wand's and
+the sword's materials do. The spike's dim studio map under them was dropped: its softboxes showed as stray
 hexagons in the glass, and the shop no longer needs `studio.hdr`. No asset is added.
 
 **Tone mapping and bloom.** The potion's canvases render with ACES. `@react-three/fiber` already
@@ -151,7 +171,7 @@ in the liquid or the light moves.
 and keeps the glass's added light, so the glass does not wash out or dark-edge on the card.
 
 **Colours.** Under M1 and every tint the nine ingredients keep the wheel's rainbow order of hue
-(OKLCH): Emberroot `#f0892a` (h 57), Starpetal `#f8d14f` (h 92), Frogfizz 136, Snailshine 183, Bluebell 263,
+(OKLCH): Emberroot `#f0892a` (h 57), Starpetal `#f5bd3a` (h 84), Frogfizz 136, Snailshine 183, Bluebell 263,
 Thundercloud `#5a4ab8` (h 285), Moonmilk `#c7b2f0` (h 300), Rosehip `#e0479a` (h 351), Puffcap
 `#d42c2c` (h 27). Rosehip, Puffcap and Emberroot were 19 and 29 degrees apart and are now 36 and
 30; Moonmilk was near white (chroma 0.02) and read as pale lavender milk, the spike's weakest
@@ -160,7 +180,11 @@ liquid's depth and every tint, so it is lighter (L 0.42 to 0.49) at the same hue
 left Emberroot and Starpetal the closest neighbours (28 degrees, OKLab 0.131), so Starpetal is a
 lighter, yellower gold (`#f2c14e` to `#f8d14f`, L 0.83 to 0.87, h 85 to 92): the pair is now 35
 degrees and 0.171 apart, Starpetal and Frogfizz 44 degrees and 0.161, and the closest pair is
-Rosehip and Puffcap at 0.143. A unit test pins the rainbow order. `MURK_REACH` is untouched, and
+Rosehip and Puffcap at 0.143. Round 2's gate then asked for a honey gold, not a lemon one:
+under ACES a bright yellow drifts greener, so with the brighter liquid `#f8d14f` rendered with
+green 0.83 of red. Starpetal is `#f5bd3a` (L 0.83, h 84), which renders at value 0.70 and green
+0.77 of red; it is 0.124 from Emberroot in OKLab, the closest pair now, and in the bottle the
+two stay far apart (Emberroot renders at green 0.48 of red). A unit test pins the rainbow order. `MURK_REACH` is untouched, and
 the potion suite's colour bounds hold. Presets keep their bottles and finishes.
 
 **The wax seal: cut.** Ticket 09 deferred the wax seal's short-neck question to this gate. Two
