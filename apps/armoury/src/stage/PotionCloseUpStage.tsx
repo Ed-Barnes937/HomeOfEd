@@ -3,6 +3,7 @@ import { Suspense, useMemo, useRef } from 'react'
 import { compilePotion, type PotionSpec } from '../potion/compile.ts'
 import { isGold, potionGlowColour, potionName } from '../potion/describe.ts'
 import { potionOutline } from '../potion/outline.ts'
+import { FlourishProbe, PROBE } from './FlourishProbe.tsx'
 import { HeldRig, type HeldItem } from './HeldRig.tsx'
 import { CLAY, PotionMesh } from './PotionMesh.tsx'
 import {
@@ -16,6 +17,7 @@ import {
   PotionToneMapping,
   useLiquidClock,
 } from './potionScene.tsx'
+import { PotionPoseProbe } from './PotionPoseProbe.tsx'
 import { MM } from './scene.tsx'
 import type { CloseUpProps } from './stage.ts'
 
@@ -46,12 +48,7 @@ export function potionHeldItem(spec: PotionSpec): HeldItem {
 }
 
 /** The close look: the bottle rises from the table, stands up, leans and tips under a finger and rights itself. */
-export function PotionCloseUpStage({
-  params,
-  reducedMotion,
-  name,
-  ...rig
-}: CloseUpProps) {
+export function PotionCloseUpStage({ params, reducedMotion, name, ...rig }: CloseUpProps) {
   const spec = useMemo(() => compilePotion(params), [params])
   const item = useMemo(() => potionHeldItem(spec), [spec])
   const label = useMemo(
@@ -94,7 +91,13 @@ export function PotionCloseUpStage({
       }
       effects={null}
     >
-      {(_, up) => <PotionMesh spec={spec} upFrom={up} clock={clock} label={label} />}
+      {(flourishAt, up) => (
+        <>
+          <PotionMesh spec={spec} upFrom={up} clock={clock} label={label} />
+          {PROBE && <FlourishProbe at={flourishAt} />}
+          {PROBE && <PotionPoseProbe up={up} />}
+        </>
+      )}
     </HeldRig>
   )
 }

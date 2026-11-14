@@ -1,14 +1,19 @@
 // Screenshots of the real stages on the real GPU (ANGLE Metal), for judging by eye.
 // node apps/armoury/scripts/gpu-shots.mjs <baseUrl> <outDir> <set.json> [only,names] [--picture] [--reduced-motion]
 //   [--clay] [--views=desk,phone] [--box-only] [--close=1200,7000] [--focus=tip,hilt] [--focus-only] [--rolls=20,-40]
-//   [--leans=30,-45] [--tips=20,-30] [--face] [--freeze=1.2]
+//   [--leans=30,-45] [--tips=20,-30] [--leantips=60:45,-30:20] [--face] [--freeze=1.2]
 // The set file is { "<name>": { "kind": "wand" | "sword" | "potion", "params": { ... } } }.
 // A potion opens at /potions; its close frames default to 100 and 400 ms (rising) and 1200 and 4800 (held), and
-// it skips the zoom: --leans and --tips shoot it while the drag still holds it (lean<deg>, tip<deg>; a lean is
-// positive to the right, a tip towards the viewer), since it rights itself on release, then a tap away puts it
-// back (r<ms> after). --face touches the bottle as it starts to rise, before its idle turn begins, so its label
-// faces the camera in every close frame, lean and tip. A potion's close frames are timed from the lift, the close
-// look's first frame; when each was taken, from the tap, lands in <name>-<view>-close.txt.
+// it skips the zoom: --leans, --tips and --leantips (lean:tip pairs, one drag doing both) shoot it while the drag
+// still holds it, since it rights itself on release, then a tap away puts it back (r<ms> after). Each is the pose
+// wanted in degrees, a lean positive to the right and a tip towards the viewer; the drag is worked out through the
+// hold's soft limits, and a pose at or past a limit (60 lean, 45 tip) aims 1 degree short of it. The frames are
+// lean<deg>, tip<deg> and lean<deg>tip<deg>, named by the pose asked for. The drags wait for the arrival flourish to
+// end, and each fails the run if the bottle as drawn is not within 1.5 degrees of the pose aimed at; the reached
+// poses land in <name>-<view>-poses.txt (dev server only). --face touches the bottle as it starts to rise, before
+// its idle turn begins, so its label faces the camera in every close frame, lean and tip. A potion's close frames
+// are timed from the lift, the close look's first frame; when each was taken, from the tap, lands in
+// <name>-<view>-close.txt.
 // --freeze=<seconds> holds a potion's liquid clock (and the candle's flicker) at that moment in every frame (dev server only).
 // --clay draws a sword or a potion in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
@@ -46,12 +51,32 @@ const focusOnly = flags.has('--focus-only')
 const rolls = options.rolls ? options.rolls.split(',') : []
 const leans = options.leans ? options.leans.split(',').map(Number) : []
 const tips = options.tips ? options.tips.split(',').map(Number) : []
+const leantips = options.leantips
+  ? options.leantips.split(',').map((pair) => pair.split(':').map(Number))
+  : []
 const face = flags.has('--face')
 const freeze = options.freeze ?? null
 // The close look rolls, leans and tips 0.007 radians per pixel dragged.
 const PX_PER_DEGREE = Math.PI / 180 / 0.007
 // A drag only turns the item once it has travelled further than this.
 const TAP_SLOP_PX = 6
+// hold.ts: the upright limits and the soft stretch before each.
+const LEAN_MAX = 60
+const TIP_MAX = 45
+const SOFT = 10
+// The arrival flourish holds the bottle upright for 4 s, easing out over the last 0.3.
+const FLOURISH_OVER_SECONDS = 4.3
+const POSE_TOLERANCE = 1.5
+const aimAt = (deg, max) => Math.sign(deg) * Math.min(Math.abs(deg), max - 1)
+const RADIANS = Math.PI / 180
+const tiltOf = (lean, tip) =>
+  Math.acos(Math.cos(lean * RADIANS) * Math.cos(tip * RADIANS)) / RADIANS
+// The raw drag, in degrees, that hold.ts's soften turns into `deg`.
+const unsoften = (deg, max) => {
+  const knee = max - SOFT
+  const a = Math.abs(deg)
+  return Math.sign(deg) * (a <= knee ? a : knee - SOFT * Math.log(1 - (a - knee) / SOFT))
+}
 const wanted = only ? new Set(only.split(',')) : null
 const seconds = (list) => (list ? list.split(',').map(Number) : [])
 const flourishAt = seconds(options.flourish)
@@ -180,18 +205,72 @@ try {
         if (kind === 'potion') {
           const x = view.viewport.width / 2
           const y = view.viewport.height * 0.45
+          const pose = (lean, tip, tag) => ({
+            tag,
+            lean: aimAt(lean, LEAN_MAX),
+            tip: aimAt(tip, TIP_MAX),
+          })
           const drags = [
-            ...leans.map((deg) => ({ tag: `lean${deg}`, dx: deg * PX_PER_DEGREE, dy: 0 })),
-            ...tips.map((deg) => ({ tag: `tip${deg}`, dx: 0, dy: deg * PX_PER_DEGREE })),
+            ...leans.map((deg) => pose(deg, 0, `lean${deg}`)),
+            ...tips.map((deg) => pose(0, deg, `tip${deg}`)),
+            ...leantips.map(([l, t]) => pose(l, t, `lean${l}tip${t}`)),
           ]
-          for (const { tag, dx, dy } of drags) {
+          const poses = []
+          const posesFile = join(out, `${name}-${view.tag}-poses.txt`)
+          const reached = () => page.evaluate(() => globalThis.potionPose ?? null)
+          if (drags.length) {
+            const waitFrom = Date.now()
+            await page
+              .waitForFunction(
+                (s) => (globalThis.sinceFlourish ?? -1) >= s,
+                FLOURISH_OVER_SECONDS,
+                {
+                  polling: 'raf',
+                  timeout: 30000,
+                },
+              )
+              .catch(async () => {
+                const open = (await page.getByRole('dialog').count()) > 0
+                throw new Error(
+                  `${name} ${view.tag}: the arrival flourish never reached ${FLOURISH_OVER_SECONDS} s in 30 s (${open ? 'is the flourish probe mounted, on a dev server?' : 'the close look is gone: did the dev server reload the page?'})`,
+                )
+              })
+            poses.push(
+              `flourish over: ${Date.now() - start} ms after the lift, waited ${Date.now() - waitFrom} ms`,
+            )
+          }
+          for (const { tag, lean, tip } of drags) {
+            await page
+              .waitForFunction(() => (globalThis.potionPose?.tilt ?? 99) < 0.5, null, {
+                polling: 'raf',
+                timeout: 10000,
+              })
+              .catch(() => {
+                throw new Error(
+                  `${name} ${view.tag} ${tag}: the bottle never stood upright before the drag`,
+                )
+              })
+            const dx = unsoften(lean, LEAN_MAX) * PX_PER_DEGREE
+            const dy = unsoften(tip, TIP_MAX) * PX_PER_DEGREE
             await page.mouse.move(x, y)
             await page.mouse.down()
-            // Used up by the tap slop, across the drag, so all of the drag itself turns the bottle.
-            await page.mouse.move(dx ? x : x + TAP_SLOP_PX, dx ? y + TAP_SLOP_PX : y)
-            const [sx, sy] = dx ? [x, y + TAP_SLOP_PX] : [x + TAP_SLOP_PX, y]
-            await page.mouse.move(sx + dx, sy + dy, { steps: 12 })
+            // Used up by the tap slop, so all of the drag itself turns the bottle.
+            await page.mouse.move(x, y - TAP_SLOP_PX)
+            await page.mouse.move(x + dx, y - TAP_SLOP_PX + dy, { steps: 12 })
             await page.waitForTimeout(400)
+            const got = await reached()
+            const aimed = `lean ${lean.toFixed(1)} tip ${tip.toFixed(1)} (tilt ${tiltOf(lean, tip).toFixed(1)})`
+            const line = got
+              ? `${tag}: aimed at ${aimed}, reached lean ${got.lean.toFixed(1)} tip ${got.tip.toFixed(1)} (tilt ${got.tilt.toFixed(1)})`
+              : `${tag}: aimed at ${aimed}, no pose published`
+            poses.push(line)
+            writeFileSync(posesFile, poses.join('\n') + '\n')
+            if (
+              !got ||
+              Math.abs(got.lean - lean) > POSE_TOLERANCE ||
+              Math.abs(got.tip - tip) > POSE_TOLERANCE
+            )
+              throw new Error(`${name} ${view.tag} ${line}, not within ${POSE_TOLERANCE} degrees`)
             await page.screenshot({ path: shot(tag) })
             await page.mouse.up()
             await page.waitForTimeout(1500)
