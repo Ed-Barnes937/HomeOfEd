@@ -332,6 +332,7 @@ for (const size of [
   { width: 375, height: 667 },
   { width: 390, height: 844 },
   { width: 900, height: 700 },
+  { width: 900, height: 900 },
   { width: 1024, height: 768 },
   { width: 1180, height: 820 },
   { width: 1280, height: 720 },
@@ -350,6 +351,19 @@ for (const size of [
         ;({ root } = await mountApp())
         await root.verifyPotionName(name)
         await root.verifyCardAndHintFit()
+      }
+    })
+
+    test('the bottle stands inside the scene, at least half its shadow in view', async ({
+      mountApp,
+      page,
+    }) => {
+      let { root } = await mountApp()
+      await root.verifyBottleInScene()
+      for (const params of [TALLEST, SECRET_BLEND, ...LONGEST_TEXTS.map(([p]) => p)]) {
+        await startWith(page, params, () => root.reload())
+        ;({ root } = await mountApp())
+        await root.verifyBottleInScene()
       }
     })
 

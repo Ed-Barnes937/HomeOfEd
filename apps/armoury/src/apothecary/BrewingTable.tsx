@@ -1,7 +1,10 @@
 import { useMemo, type CSSProperties } from 'react'
 
+import { normalise } from '../engine/schema.ts'
+import { BOTTLES, type ShapeId } from '../potion/bottles.ts'
 import { compilePotion } from '../potion/compile.ts'
 import { BASE_LINE, SLOT_MM } from '../potion/framing.ts'
+import { potionSchema } from '../potion/potionSchema.ts'
 import { CloseUp } from '../shop/CloseUp.tsx'
 import type { SceneProps } from '../shop/shopView.ts'
 import { StageBoundary } from '../shop/StageBoundary.tsx'
@@ -13,6 +16,24 @@ import styles from './BrewingTable.module.scss'
 import { recipeCard } from './recipeCard.ts'
 import { RoomWall } from './RoomWall.tsx'
 import { bottleOnTable } from './tableArt.ts'
+
+let furthest: { halfWidth: number; shadowMid: number } | null = null
+
+/** The furthest any bottle reaches right of its foot, in mm, so the room keeps one scale whichever stands there. */
+function furthestReach() {
+  furthest ??= (Object.keys(BOTTLES) as ShapeId[])
+    .flatMap((shape) =>
+      [0, 1].map((neck) => bottleOnTable(compilePotion(normalise(potionSchema, { shape, neck })))),
+    )
+    .reduce(
+      (most, f) => ({
+        halfWidth: Math.max(most.halfWidth, f.widthMm / 2),
+        shadowMid: Math.max(most.shadowMid, f.shadowMidMm),
+      }),
+      { halfWidth: 0, shadowMid: 0 },
+    )
+  return furthest
+}
 
 const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')
 
@@ -33,6 +54,10 @@ export function BrewingTable({ view, item, reducedMotion, stageRef, onRename }: 
     '--glow-y': footing.glow.yMm / SLOT_MM,
     '--glow-w': footing.glow.rxMm / SLOT_MM,
     '--glow-rgb': rgbOf(view.item.glow(params)),
+    '--half-w': footing.widthMm / 2 / SLOT_MM,
+    '--shadow-mid': footing.shadowMidMm / SLOT_MM,
+    '--reach-half-w': furthestReach().halfWidth / SLOT_MM,
+    '--reach-shadow-mid': furthestReach().shadowMid / SLOT_MM,
   } as CSSProperties
 
   return (

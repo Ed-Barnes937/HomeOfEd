@@ -158,6 +158,38 @@ export class ApothecaryPom extends BenchPom {
     expect(covered, 'columns where the card meets the footing').toEqual([])
   }
 
+  /** The bottle's widest point stands `margin` px inside the scene, and at least half its shadow as drawn shows. */
+  async verifyBottleInScene(margin = 24): Promise<void> {
+    const { bottleRight, sceneLeft, sceneRight, shadowLeft, shadowRight } =
+      await this.table.evaluate((table) => {
+        const scene = table.parentElement!
+        const slot = table.querySelector('button[aria-haspopup="dialog"]')!.getBoundingClientRect()
+        const halfWidth = Number(getComputedStyle(scene).getPropertyValue('--half-w'))
+        const svg = table.querySelector<SVGSVGElement>('button[aria-haspopup="dialog"] > svg')!
+        const shadow = svg.querySelector('path')!.getBoundingClientRect()
+        const fade = svg.querySelector<SVGRectElement>('mask rect')!
+        const fadeEnd = new DOMPoint(
+          fade.x.baseVal.value + fade.width.baseVal.value,
+          0,
+        ).matrixTransform(svg.getScreenCTM()!).x
+        const box = scene.getBoundingClientRect()
+        return {
+          bottleRight: slot.left + slot.width / 2 + halfWidth * slot.height,
+          sceneLeft: box.left,
+          sceneRight: box.right,
+          shadowLeft: shadow.left,
+          shadowRight: Math.min(shadow.right, fadeEnd),
+        }
+      })
+    expect(bottleRight, 'the bottle against the scene edge').toBeLessThanOrEqual(
+      sceneRight - margin,
+    )
+    const shown =
+      (Math.min(sceneRight, shadowRight) - Math.max(sceneLeft, shadowLeft)) /
+      (shadowRight - shadowLeft)
+    expect(shown, 'the share of the shadow in view').toBeGreaterThanOrEqual(0.5)
+  }
+
   async verifyStage(expected: PotionFacts): Promise<void> {
     await expect(this.stage).toHaveAttribute('data-item', 'potion')
     for (const [key, value] of Object.entries(expected) as [string, string][]) {

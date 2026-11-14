@@ -46,6 +46,8 @@ export interface BottleOnTable {
   /** The foot's half width. */
   footMm: number
   widthMm: number
+  /** Halfway along the shadow as drawn, across from the bottle's axis: its run fades out at the slot's edge. */
+  shadowMidMm: number
   /** Where the recipe card's string is tied, above the foot. */
   tie: { heightMm: number; halfWidthMm: number }
   /** The light through the liquid, pooled on the table inside the shadow. */
@@ -73,6 +75,10 @@ export function bottleOnTable(spec: PotionSpec): BottleOnTable {
     shadow: `M${cast.map(([x, y]) => `${r1(x)} ${r1(y)}`).join('L')}Z`,
     footMm: right[0]![0],
     widthMm: outline.widthMm,
+    shadowMidMm:
+      (Math.min(...cast.map(([x]) => x)) +
+        Math.min(Math.max(...cast.map(([x]) => x)), SLOT_MM - right[0]![0])) /
+      2,
     tie: { heightMm: tieAt, halfWidthMm: narrowest },
     glow: {
       xMm: pooled * SHADOW_RUN,

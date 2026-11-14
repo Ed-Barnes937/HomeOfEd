@@ -1,10 +1,19 @@
 // Everything is placed from the bottle's foot: --bottle-x across the scene and --floor down it,
 // the box stage --slot tall, and the room's board at --u per unit (1px when the slot is 460px).
-// The foot stands far enough right that the candle's dish, 433 units to its left, is never cut.
+// The foot stands far enough right that the candle's dish, 433 units to its left, is never cut,
+// and far enough left that the bottle stands 24px inside the scene with half its shadow in view;
+// where both cannot hold for the furthest-reaching bottle, the slot shrinks until they do.
 .scene {
-  --slot: min(460px, 51cqh);
+  --fit-u: min(
+    calc((100cqw - 36px) / (433 + 460 * var(--reach-half-w))),
+    calc((100cqw - 20px) / (433 + 460 * var(--reach-shadow-mid)))
+  );
+  --slot: min(460px, 51cqh, calc(var(--fit-u) * 460));
   --u: calc(var(--slot) / 460);
-  --bottle-x: max(56cqw, calc(var(--u) * 433 + 12px));
+  --bottle-x: min(
+    max(56cqw, calc(var(--u) * 433 + 12px)),
+    calc(100cqw - max(var(--half-w) * var(--slot) + 24px, var(--shadow-mid) * var(--slot) + 8px))
+  );
   --floor: min(70cqh, calc(100cqh - 280px));
   --card-left: max(28px, calc(var(--bottle-x) - var(--u) * 560));
   --card-top: calc(var(--floor) + var(--u) * 44);

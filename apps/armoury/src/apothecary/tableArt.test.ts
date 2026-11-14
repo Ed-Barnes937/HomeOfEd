@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { normalise } from '../engine/schema.ts'
 import { compilePotion } from '../potion/compile.ts'
-import { BASE_LINE, HEADROOM } from '../potion/framing.ts'
+import { BASE_LINE, HEADROOM, SLOT_MM } from '../potion/framing.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
 import { BOARD_SLOT, bottleOnTable, FOOT, LOWER_SHELF_UNDERSIDE, roomSvg } from './tableArt.ts'
 
@@ -69,6 +69,15 @@ describe('bottleOnTable', () => {
         expect(tie.heightMm).toBeGreaterThan(s.heightMm * 0.45)
         expect(tie.heightMm).toBeLessThan(s.heightMm - 20)
       }
+  })
+
+  it("gives the middle of the shadow's run across the table, for a scene to keep in view", () => {
+    for (const shape of ['round', 'teardrop', 'tall', 'shoulder', 'gourd']) {
+      const { shadow, shadowMidMm, footMm } = bottleOnTable(spec(shape, 1))
+      const xs = points(shadow).map(([x]) => x!)
+      const end = Math.min(Math.max(...xs), SLOT_MM - footMm)
+      expect(shadowMidMm).toBeCloseTo((Math.min(...xs) + end) / 2, 1)
+    }
   })
 
   it('sits the glow on the table beside the foot, inside the shadow', () => {
