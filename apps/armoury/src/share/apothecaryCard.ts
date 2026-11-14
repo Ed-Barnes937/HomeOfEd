@@ -1,15 +1,14 @@
-import { bottleOnTable, BOARD_SLOT, CANDLE, FOOT, roomSvg } from '../apothecary/tableArt.ts'
+import { bottleOnTable, CANDLE, FOOT, roomSvg, UNITS_PER_MM } from '../apothecary/tableArt.ts'
 import type { Params } from '../engine/schema.ts'
-import { compilePotion } from '../potion/compile.ts'
+import { compilePotion, type PotionSpec } from '../potion/compile.ts'
 import { isGold } from '../potion/describe.ts'
 import { BASE_LINE, PICTURE_GROUND, SLOT_MM } from '../potion/framing.ts'
 import { CARD_HEIGHT, CARD_WIDTH, type CardContent, type TagColours } from './shareCard.ts'
 
-/** The box stage's height on the card, and where the bottle's foot stands. */
-const SLOT = 660
+/** Where the bottle's foot stands on the card. */
 const FOOT_AT = { x: 640, y: 800 }
-const UNIT = SLOT / BOARD_SLOT
-const PX_PER_MM = SLOT / SLOT_MM
+/** Every bottle is drawn this tall, foot to stopper allowance, filling the frame above the card as in P2. */
+const BOTTLE_PX = 0.44 * CARD_HEIGHT
 /** A pixel this far from the ground, in its most different channel, is wholly the bottle's. */
 const LIFT = 40
 
@@ -76,31 +75,48 @@ export function apothecaryCardArt() {
   return art
 }
 
-const toCard = (bx: number, by: number) => ({
-  x: FOOT_AT.x + (bx - FOOT.x) * UNIT,
-  y: FOOT_AT.y + (by - FOOT.y) * UNIT,
-})
+export interface PictureFraming {
+  pxPerMm: number
+  foot: { x: number; y: number }
+  /** A point of the room's drawing on the card. */
+  toCard: (bx: number, by: number) => { x: number; y: number }
+}
 
-function drawRoom(ctx: CanvasRenderingContext2D) {
+/** The picture's scale for this bottle: the room is drawn at the bottle's scale, about its foot. */
+export function pictureFraming(spec: PotionSpec): PictureFraming {
+  const pxPerMm = BOTTLE_PX / spec.heightMm
+  const unit = pxPerMm / UNITS_PER_MM
+  return {
+    pxPerMm,
+    foot: FOOT_AT,
+    toCard: (bx, by) => ({
+      x: FOOT_AT.x + (bx - FOOT.x) * unit,
+      y: FOOT_AT.y + (by - FOOT.y) * unit,
+    }),
+  }
+}
+
+function drawRoom(ctx: CanvasRenderingContext2D, framing: PictureFraming) {
   const { room } = apothecaryCardArt()
   ctx.fillStyle = '#110b0e'
   ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT)
   if (room && room.complete && room.naturalWidth > 0) {
     const f = room.naturalWidth / 2400
-    const origin = { x: FOOT.x - FOOT_AT.x / UNIT, y: FOOT.y - FOOT_AT.y / UNIT }
+    const unit = framing.pxPerMm / UNITS_PER_MM
+    const origin = { x: FOOT.x - FOOT_AT.x / unit, y: FOOT.y - FOOT_AT.y / unit }
     ctx.drawImage(
       room,
       origin.x * f,
       origin.y * f,
-      (CARD_WIDTH / UNIT) * f,
-      (CARD_HEIGHT / UNIT) * f,
+      (CARD_WIDTH / unit) * f,
+      (CARD_HEIGHT / unit) * f,
       0,
       0,
       CARD_WIDTH,
       CARD_HEIGHT,
     )
   }
-  const flame = toCard(CANDLE.x, CANDLE.flameY)
+  const flame = framing.toCard(CANDLE.x, CANDLE.flameY)
   ctx.save()
   ctx.globalCompositeOperation = 'screen'
   const light = ctx.createRadialGradient(flame.x, flame.y, 0, flame.x, flame.y, 760)
@@ -125,30 +141,36 @@ function softFill(ctx: CanvasRenderingContext2D, path: Path2D, colour: string, b
   ctx.restore()
 }
 
-function drawBottle(ctx: CanvasRenderingContext2D, c: CardContent) {
-  const footing = bottleOnTable(compilePotion(c.params))
-  const mm = new DOMMatrix([PX_PER_MM, 0, 0, PX_PER_MM, FOOT_AT.x, FOOT_AT.y])
+function drawBottle(
+  ctx: CanvasRenderingContext2D,
+  c: CardContent,
+  spec: PotionSpec,
+  { pxPerMm }: PictureFraming,
+) {
+  const footing = bottleOnTable(spec)
+  const mm = new DOMMatrix([pxPerMm, 0, 0, pxPerMm, FOOT_AT.x, FOOT_AT.y])
   const shadow = new Path2D()
   shadow.addPath(new Path2D(footing.shadow), mm)
-  softFill(ctx, shadow, 'rgba(0,0,0,0.55)', 14)
-  softFill(ctx, shadow, 'rgba(0,0,0,0.35)', 4)
+  softFill(ctx, shadow, 'rgba(0,0,0,0.55)', 6 * pxPerMm)
+  softFill(ctx, shadow, 'rgba(0,0,0,0.35)', 1.7 * pxPerMm)
   const contact = new Path2D()
-  contact.ellipse(FOOT_AT.x + 3, FOOT_AT.y, footing.footMm * PX_PER_MM * 1.05, 6, 0, 0, Math.PI * 2)
-  softFill(ctx, contact, 'rgba(0,0,0,0.85)', 6)
+  const rx = footing.footMm * pxPerMm * 1.05
+  contact.ellipse(FOOT_AT.x + 1.3 * pxPerMm, FOOT_AT.y, rx, 2.6 * pxPerMm, 0, 0, Math.PI * 2)
+  softFill(ctx, contact, 'rgba(0,0,0,0.85)', 2.6 * pxPerMm)
 
   ctx.save()
   ctx.globalCompositeOperation = 'screen'
-  const gx = FOOT_AT.x + footing.glow.xMm * PX_PER_MM
-  const gy = FOOT_AT.y + footing.glow.yMm * PX_PER_MM
-  const rx = footing.glow.rxMm * PX_PER_MM
+  const gx = FOOT_AT.x + footing.glow.xMm * pxPerMm
+  const gy = FOOT_AT.y + footing.glow.yMm * pxPerMm
+  const glowRx = footing.glow.rxMm * pxPerMm
   ctx.translate(gx, gy)
   ctx.scale(1, 0.16)
-  const pool = ctx.createRadialGradient(0, 0, 0, 0, 0, rx)
+  const pool = ctx.createRadialGradient(0, 0, 0, 0, 0, glowRx)
   pool.addColorStop(0, `rgba(${c.glowRgb},0.42)`)
   pool.addColorStop(0.5, `rgba(${c.glowRgb},0.14)`)
   pool.addColorStop(1, `rgba(${c.glowRgb},0)`)
   ctx.fillStyle = pool
-  ctx.fillRect(-rx, -rx, rx * 2, rx * 2)
+  ctx.fillRect(-glowRx, -glowRx, glowRx * 2, glowRx * 2)
   ctx.restore()
 
   const lifted = document.createElement('canvas')
@@ -160,8 +182,9 @@ function drawBottle(ctx: CanvasRenderingContext2D, c: CardContent) {
   const pixels = lctx.getImageData(0, 0, lifted.width, lifted.height)
   liftFromGround(pixels.data, rgbOf(PICTURE_GROUND))
   lctx.putImageData(pixels, 0, 0)
-  const h = (SLOT * c.item.height) / c.item.width
-  ctx.drawImage(lifted, FOOT_AT.x - SLOT / 2, FOOT_AT.y - BASE_LINE * h, SLOT, h)
+  const slot = pxPerMm * SLOT_MM
+  const h = (slot * c.item.height) / c.item.width
+  ctx.drawImage(lifted, FOOT_AT.x - slot / 2, FOOT_AT.y - BASE_LINE * h, slot, h)
 }
 
 function drawVignette(ctx: CanvasRenderingContext2D) {
@@ -182,8 +205,10 @@ export function paintApothecaryCard(
   ctx: CanvasRenderingContext2D,
   content: CardContent,
 ): TagColours {
-  drawRoom(ctx)
-  drawBottle(ctx, content)
+  const spec = compilePotion(content.params)
+  const framing = pictureFraming(spec)
+  drawRoom(ctx, framing)
+  drawBottle(ctx, content, spec, framing)
   drawVignette(ctx)
   return recipeTag(content.params)
 }

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
+import { FOOT } from '../apothecary/tableArt.ts'
 import { normalise } from '../engine/schema.ts'
+import { BOTTLES, type ShapeId } from '../potion/bottles.ts'
+import { compilePotion } from '../potion/compile.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
-import { liftFromGround, recipeTag } from './apothecaryCard.ts'
+import { withPours } from '../potion/pours.ts'
+import { liftFromGround, pictureFraming, recipeTag } from './apothecaryCard.ts'
+import { CARD_HEIGHT } from './shareCard.ts'
 
 const GROUND: [number, number, number] = [26, 17, 20]
 const pixels = (...px: number[][]) => new Uint8ClampedArray(px.flat())
@@ -52,5 +57,37 @@ describe('recipeTag', () => {
     expect(
       recipeTag(potion(['thundercloud', 'thundercloud', 'moonmilk'], 'no')).edge,
     ).toBeUndefined()
+  })
+})
+
+describe('pictureFraming', () => {
+  // The wordmark is set at a 100 px baseline in 54 px type.
+  const WORDMARK_BAND = 120
+  const bottles = (Object.keys(BOTTLES) as ShapeId[]).flatMap((shape) =>
+    [0, 0.4, 1].map((neck) => ({
+      name: `${shape} neck ${neck}`,
+      spec: compilePotion(
+        normalise(potionSchema, {
+          ...withPours(['moonmilk', 'rosehip']),
+          shape,
+          neck,
+          stopper: 'glass',
+        }),
+      ),
+    })),
+  )
+
+  it.each(bottles)(
+    '$name: stands at least 40 percent of the picture tall, its top below the wordmark',
+    ({ spec }) => {
+      const { pxPerMm, foot } = pictureFraming(spec)
+      expect(spec.heightMm * pxPerMm).toBeGreaterThanOrEqual(0.4 * CARD_HEIGHT)
+      expect(foot.y - spec.heightMm * pxPerMm).toBeGreaterThan(WORDMARK_BAND)
+    },
+  )
+
+  it.each(bottles)("$name: stands on the room's table line", ({ spec }) => {
+    const { foot, toCard } = pictureFraming(spec)
+    expect(toCard(FOOT.x, FOOT.y)).toEqual(foot)
   })
 })
