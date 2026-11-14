@@ -6,8 +6,14 @@ import { compilePotion, type PotionSpec } from './compile.ts'
 import type { IngredientId } from './ingredients.ts'
 import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
-import { BASE_MM, bottleProfile, type BottleProfile, uprightLevels } from './profile.ts'
-import { levelsAt, levelTable } from './tipped.ts'
+import {
+  BASE_MM,
+  bottleProfile,
+  type BottleProfile,
+  LIQUID_GAP_MM,
+  uprightLevels,
+} from './profile.ts'
+import { floorAt, levelsAt, levelTable } from './tipped.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
 const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
@@ -105,6 +111,23 @@ describe('levelTable', () => {
   })
 })
 
+describe("the liquid's floor along up", () => {
+  it.each(CATALOGUE)(
+    "$name: is the liquid's lowest point along up, upright on the floor",
+    ({ profile, table }) => {
+      expect(table.floors).toHaveLength(table.levels.length)
+      expect(floorAt(table, 0)).toBeCloseTo(BASE_MM + LIQUID_GAP_MM, 9)
+      for (const deg of [10, 35, 60, 90]) {
+        const t = deg * RAD
+        let lowest = Infinity
+        for (let z = BASE_MM; z <= profile.cavityTopZ; z += 0.01)
+          lowest = Math.min(lowest, z * Math.cos(t) - profile.innerR(z) * Math.sin(t))
+        expect(Math.abs(floorAt(table, t) - (lowest + LIQUID_GAP_MM)), `${deg}`).toBeLessThan(0.15)
+      }
+    },
+  )
+})
+
 describe('levelsAt', () => {
   it('interpolates between rows and holds at the ends', () => {
     const { table } = CATALOGUE[4]!
@@ -115,5 +138,14 @@ describe('levelsAt', () => {
     const plus = levelsAt(table, 20 * RAD)
     levelsAt(table, -20 * RAD).forEach((h, i) => expect(h).toBeCloseTo(plus[i]!, 9))
     levelsAt(table, 120 * RAD).forEach((h, i) => expect(h).toBeCloseTo(table.levels[18]![i]!, 9))
+    expect(floorAt(table, 7.5 * RAD)).toBeCloseTo((table.floors[1]! + table.floors[2]!) / 2, 9)
+    expect(floorAt(table, -20 * RAD)).toBeCloseTo(floorAt(table, 20 * RAD), 9)
+  })
+
+  it('writes into the array it is given', () => {
+    const { table } = CATALOGUE[4]!
+    const out = [0, 0, 0]
+    expect(levelsAt(table, 33 * RAD, out)).toBe(out)
+    expect(out).toEqual(levelsAt(table, 33 * RAD))
   })
 })

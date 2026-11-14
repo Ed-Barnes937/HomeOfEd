@@ -194,18 +194,6 @@ describe('bottleProfile', () => {
 
 type Curve2 = { r: number; z: number }[]
 
-/** The widest radius of a closed profile at height z. */
-function widestAt(curve: Curve2, z: number): number {
-  let best = -Infinity
-  for (let i = 1; i < curve.length; i++) {
-    const a = curve[i - 1]!
-    const b = curve[i]!
-    if ((a.z - z) * (b.z - z) > 0 || a.z === b.z) continue
-    best = Math.max(best, a.r + ((b.r - a.r) * (z - a.z)) / (b.z - a.z))
-  }
-  return best
-}
-
 function crossings(curve: Curve2): number {
   const side = (a: Curve2[0], b: Curve2[0], c: Curve2[0]) =>
     Math.sign((b.r - a.r) * (c.z - a.z) - (b.z - a.z) * (c.r - a.r))
@@ -219,78 +207,29 @@ function crossings(curve: Curve2): number {
 }
 
 describe('the stoppers', () => {
-  const WAXED = SHAPES.flatMap((shape) =>
+  const GLASS_STOPPERED = SHAPES.flatMap((shape) =>
     [0, 0.5, 1].map((neck) => {
       const spec = compilePotion(
-        normalise(potionSchema, { ...withPours(THREE), shape, neck, stopper: 'wax' }),
+        normalise(potionSchema, { ...withPours(THREE), shape, neck, stopper: 'glass' }),
       )
-      const ring = 2 * (BOTTLES[shape].neckRadiusMm + BOTTLES[shape].lipMm)
-      return { name: `${shape} neck ${neck}`, profile: bottleProfile(spec), ring }
+      return { name: `${shape} neck ${neck} glass stopper`, profile: bottleProfile(spec) }
     }),
   )
 
-  it.each([...CATALOGUE, ...WAXED])('$name: no closed profile crosses itself', ({ profile }) => {
-    for (const curve of [profile.glass, profile.liquid, ...profile.stopper]) {
-      expect(crossings(curve)).toBe(0)
-    }
-  })
+  it.each([...CATALOGUE, ...GLASS_STOPPERED])(
+    '$name: no closed profile crosses itself',
+    ({ profile }) => {
+      for (const curve of [profile.glass, profile.liquid, ...profile.stopper]) {
+        expect(crossings(curve)).toBe(0)
+      }
+    },
+  )
 
   it('says so, rather than hanging, when a glass knob has no room above the lip', () => {
     const spec = compilePotion(normalise(potionSchema, { shape: 'teardrop', stopper: 'glass' }))
     const heightMm = spec.bodyHeightMm + spec.neckMm + 8
     expect(() => bottleProfile({ ...spec, heightMm })).toThrow(/no room/)
   })
-
-  it.each(WAXED)('$name: the wax covers the cork above the lip', ({ profile }) => {
-    const cork = profile.stopper[0]!
-    const wax = profile.stopper[1]!
-    const waxTop = Math.max(...wax.map((p) => p.z))
-    expect(waxTop).toBeGreaterThan(Math.max(...cork.map((p) => p.z)) + 1)
-    for (const p of cork.filter((q) => q.z > profile.lipZ)) {
-      expect(widestAt(wax, p.z)).toBeGreaterThan(p.r + 0.8)
-    }
-  })
-
-  it.each(WAXED)(
-    '$name: the wax hugs the lip ring and stands low over the cork, its top domed',
-    ({ profile, ring }) => {
-      const cork = profile.stopper[0]!
-      const wax = profile.stopper[1]!
-      const beyond = Math.max(...wax.map((p) => p.r)) - ring / 2
-      expect(beyond / ring).toBeGreaterThanOrEqual(0.04)
-      expect(beyond / ring).toBeLessThanOrEqual(0.06)
-      const top = Math.max(...wax.map((p) => p.z))
-      expect((top - profile.lipZ) / ring).toBeGreaterThanOrEqual(0.11)
-      expect((top - profile.lipZ) / ring).toBeLessThanOrEqual(0.2)
-      const corkTop = Math.max(...cork.map((p) => p.z))
-      expect(corkTop - profile.lipZ).toBeLessThanOrEqual(2)
-      const turned = wax.map((p) => ({ r: p.z, z: p.r }))
-      const corkR = profile.stopperSeat.r
-      const dome = top - widestAt(turned, 0.8 * corkR)
-      expect(dome).toBeGreaterThan(0.3)
-      expect(dome).toBeLessThan(1)
-    },
-  )
-
-  it.each(WAXED)(
-    '$name: the coat runs down the neck, thinning to a hem no thicker than the coat',
-    ({ profile, ring }) => {
-      const wax = profile.stopper[1]!
-      const { hemZ } = profile.wax!
-      const coat = widestAt(wax, hemZ + 0.5) - profile.neckR
-      expect(coat).toBeGreaterThan(0.3)
-      expect(coat).toBeLessThan(0.6)
-      expect(widestAt(wax, profile.neckTopZ - 1.5) - profile.neckR).toBeGreaterThan(coat)
-      const lowest = Math.min(...wax.map((p) => p.z))
-      for (const p of wax.filter((q) => q.z < hemZ))
-        expect(p.r).toBeLessThanOrEqual(profile.neckR + coat + 1e-9)
-      expect(lowest).toBeGreaterThan(profile.shoulderZ)
-      if (profile.lipZ - profile.shoulderZ > 1.6 * ring) {
-        expect((profile.lipZ - hemZ) / ring).toBeGreaterThanOrEqual(0.6)
-        expect((profile.lipZ - hemZ) / ring).toBeLessThanOrEqual(1)
-      }
-    },
-  )
 })
 
 describe('uprightLevels', () => {

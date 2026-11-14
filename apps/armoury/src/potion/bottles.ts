@@ -158,8 +158,8 @@ export function neckLengthMm(p: Params): number {
 }
 
 /**
- * Foot to the top of the stopper allowance, which the glass stopper reaches and the cork and
- * the wax stop below. The same for every stopper, so framing ignores the stopper.
+ * Foot to the top of the stopper allowance, which the glass stopper reaches and the cork stops
+ * below. The same for every stopper, so framing ignores the stopper.
  */
 export function drawnHeightMm(p: Params): number {
   return rowOf(p).bodyHeightMm + neckLengthMm(p) + STOPPER_ALLOWANCE_MM

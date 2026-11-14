@@ -17,6 +17,8 @@ export interface PotionFacts {
   mixed?: string
   effect?: string
   blend?: string
+  /** The name the stage was handed for the bottle's label. */
+  name?: string
 }
 
 export const FULL_MESSAGE = 'The bottle is full. Tap it to mix it, or empty it to start again.'
@@ -76,6 +78,116 @@ export class ApothecaryPom extends BenchPom {
 
   async verifyHint(text: string): Promise<void> {
     await expect(this.table.getByText(text, { exact: true })).toBeVisible()
+  }
+
+  /** The card's paper and the hint lie wholly inside the scene, above the sheet, and the hint is clear of the paper. */
+  async verifyCardAndHintFit(): Promise<void> {
+    await this.page.evaluate(() => document.fonts.ready)
+    const scene = (await this.table.locator('xpath=..').boundingBox())!
+    const paper = (await this.tagName.locator('xpath=..').boundingBox())!
+    const hint = this.table.locator('p').filter({ hasText: /^Tap the bottle/ })
+    const words = await hint.evaluate((p) => {
+      const range = document.createRange()
+      range.selectNodeContents(p)
+      return [...range.getClientRects()].map(({ left, top, right, bottom }) => ({
+        left,
+        top,
+        right,
+        bottom,
+      }))
+    })
+    const inside = (b: { left: number; top: number; right: number; bottom: number }) =>
+      b.left >= scene.x &&
+      b.top >= scene.y &&
+      b.right <= scene.x + scene.width &&
+      b.bottom <= scene.y + scene.height
+    expect(
+      inside({
+        left: paper.x,
+        top: paper.y,
+        right: paper.x + paper.width,
+        bottom: paper.y + paper.height,
+      }),
+    ).toBe(true)
+    expect(words.length).toBeGreaterThan(0)
+    for (const word of words) {
+      expect(inside(word)).toBe(true)
+      const clear =
+        word.right <= paper.x ||
+        word.left >= paper.x + paper.width ||
+        word.bottom <= paper.y ||
+        word.top >= paper.y + paper.height
+      expect(clear).toBe(true)
+    }
+  }
+
+  /**
+   * Under every column of the bottle's footing (the foot's contact shadow and the cast shadow, each
+   * to twice its blur), the card's paper starts at least `clearance` px lower.
+   */
+  async verifyFootingClearOfCard(clearance = 2): Promise<void> {
+    await this.page.evaluate(() => document.fonts.ready)
+    const paper = await this.tagName.locator('xpath=..').elementHandle()
+    const { checked, covered } = await this.table.evaluate(
+      (table, [paperEl, gap]) => {
+        const svg = table.querySelector<SVGSVGElement>('button[aria-haspopup="dialog"] > svg')!
+        const ctm = svg.getScreenCTM()!
+        const hits = new Set<number>()
+        let checked = 0
+        for (const shape of svg.querySelectorAll<SVGGeometryElement>('path, ellipse')) {
+          const filter = shape.getAttribute('filter')!.slice(4, -1)
+          const blur = svg.querySelector<SVGFEGaussianBlurElement>(`${filter} feGaussianBlur`)!
+          const reach = 2 * blur.stdDeviationY.baseVal
+          const box = shape.getBBox()
+          for (let x = box.x; x <= box.x + box.width; x += 0.5) {
+            for (let y = box.y + box.height; y >= box.y; y -= 0.1) {
+              if (!shape.isPointInFill(new DOMPoint(x, y))) continue
+              const low = new DOMPoint(x, y + reach).matrixTransform(ctm)
+              checked++
+              if (document.elementsFromPoint(low.x, low.y + gap).includes(paperEl as Element))
+                hits.add(Math.round(low.x))
+              break
+            }
+          }
+        }
+        return { checked, covered: [...hits] }
+      },
+      [paper, clearance] as const,
+    )
+    expect(checked).toBeGreaterThan(100)
+    expect(covered, 'columns where the card meets the footing').toEqual([])
+  }
+
+  /** The bottle's widest point stands `margin` px inside the scene, and at least half its shadow as drawn shows. */
+  async verifyBottleInScene(margin = 24): Promise<void> {
+    const { bottleRight, sceneLeft, sceneRight, shadowLeft, shadowRight } =
+      await this.table.evaluate((table) => {
+        const scene = table.parentElement!
+        const slot = table.querySelector('button[aria-haspopup="dialog"]')!.getBoundingClientRect()
+        const halfWidth = Number(getComputedStyle(scene).getPropertyValue('--half-w'))
+        const svg = table.querySelector<SVGSVGElement>('button[aria-haspopup="dialog"] > svg')!
+        const shadow = svg.querySelector('path')!.getBoundingClientRect()
+        const fade = svg.querySelector<SVGRectElement>('mask rect')!
+        const fadeEnd = new DOMPoint(
+          fade.x.baseVal.value + fade.width.baseVal.value,
+          0,
+        ).matrixTransform(svg.getScreenCTM()!).x
+        const box = scene.getBoundingClientRect()
+        return {
+          bottleRight: slot.left + slot.width / 2 + halfWidth * slot.height,
+          sceneLeft: box.left,
+          sceneRight: box.right,
+          shadowLeft: shadow.left,
+          shadowRight: Math.min(shadow.right, fadeEnd),
+        }
+      })
+    expect(bottleRight, 'the bottle against the scene edge').toBeLessThanOrEqual(
+      sceneRight - margin,
+    )
+    const shown =
+      (Math.min(sceneRight, shadowRight) - Math.max(sceneLeft, shadowLeft)) /
+      (shadowRight - shadowLeft)
+    expect(shown, 'the share of the shadow in view').toBeGreaterThanOrEqual(0.5)
   }
 
   async verifyStage(expected: PotionFacts): Promise<void> {

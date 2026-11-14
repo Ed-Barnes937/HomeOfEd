@@ -2,7 +2,7 @@
 // the foot's centre, such that every band keeps its volume. Not for the main chunk.
 
 import type { PotionSpec } from './compile.ts'
-import { BASE_MM, bandTops, bottleProfile, type BottleProfile } from './profile.ts'
+import { BASE_MM, bandTops, bottleProfile, type BottleProfile, LIQUID_GAP_MM } from './profile.ts'
 
 /**
  * A level h is the plane dot(p, u) = h, with p in the bottle's millimetre frame from the foot's
@@ -13,6 +13,8 @@ export interface LevelTable {
   stepDeg: number
   /** levels[i] holds each band's top, bottom first, at a tilt of i * stepDeg degrees. */
   levels: number[][]
+  /** floors[i] is the liquid's lowest point along up at that tilt: its floor upright. */
+  floors: number[]
 }
 
 const STEP_DEG = 5
@@ -41,12 +43,17 @@ function slicesOf(profile: BottleProfile): Slices {
   return { zs, rs: zs.map((z) => profile.innerR(z)), dz }
 }
 
-function tiltedLevels(
-  profile: BottleProfile,
-  { zs, rs, dz }: Slices,
-  tops: number[],
-  t: number,
-): number[] {
+/** The cavity's lowest point along up at tilt t: on its floor's edge, or on a slice. */
+function lowestAt(profile: BottleProfile, { zs, rs }: Slices, t: number): number {
+  const s = Math.sin(t)
+  const c = Math.cos(t)
+  let lowest = BASE_MM * c - profile.innerR(BASE_MM) * s
+  for (let i = 0; i < zs.length; i++) lowest = Math.min(lowest, zs[i]! * c - rs[i]! * s)
+  return lowest
+}
+
+function tiltedLevels(profile: BottleProfile, slices: Slices, tops: number[], t: number): number[] {
+  const { zs, rs, dz } = slices
   const n = zs.length
   const s = Math.sin(t)
   const c = Math.cos(t)
@@ -56,12 +63,9 @@ function tiltedLevels(
     for (let i = 0; i < n; i++) v += segmentArea(rs[i]!, (h - zs[i]! * c) / s)
     return v * dz
   }
-  let lowest = Infinity
+  const lowest = lowestAt(profile, slices, t)
   let highest = -Infinity
-  for (let i = 0; i < n; i++) {
-    lowest = Math.min(lowest, zs[i]! * c - rs[i]! * s)
-    highest = Math.max(highest, zs[i]! * c + rs[i]! * s)
-  }
+  for (let i = 0; i < n; i++) highest = Math.max(highest, zs[i]! * c + rs[i]! * s)
   return tops.map((top) => {
     const volume = profile.cavityVolume(top)
     let lo = lowest
@@ -79,18 +83,37 @@ export function levelTable(spec: PotionSpec): LevelTable {
   const profile = bottleProfile(spec)
   const tops = bandTops(profile, spec.layers.length)
   const slices = slicesOf(profile)
+  const tilt = (i: number) => (i * STEP_DEG * Math.PI) / 180
   const levels = Array.from({ length: ROWS }, (_, i) =>
-    i === 0 ? tops : tiltedLevels(profile, slices, tops, (i * STEP_DEG * Math.PI) / 180),
+    i === 0 ? tops : tiltedLevels(profile, slices, tops, tilt(i)),
   )
-  return { stepDeg: STEP_DEG, levels }
+  // The liquid's skin lies LIQUID_GAP_MM inside the cavity all round.
+  const floors = Array.from(
+    { length: ROWS },
+    (_, i) => lowestAt(profile, slices, tilt(i)) + LIQUID_GAP_MM,
+  )
+  return { stepDeg: STEP_DEG, levels, floors }
 }
 
-/** The band tops at a tilt from upright, in radians, either way; interpolated between rows. */
-export function levelsAt(table: LevelTable, tiltRadians: number): number[] {
+/** The row below a tilt in radians, either way, and how far it is towards the next. */
+function rowAt(table: LevelTable, tiltRadians: number): [row: number, f: number] {
   const deg = Math.min(90, (Math.abs(tiltRadians) * 180) / Math.PI)
   const i = Math.min(table.levels.length - 2, Math.floor(deg / table.stepDeg))
-  const f = deg / table.stepDeg - i
+  return [i, deg / table.stepDeg - i]
+}
+
+/** The band tops at a tilt from upright, in radians, either way; interpolated between rows, into `out` if given. */
+export function levelsAt(table: LevelTable, tiltRadians: number, out: number[] = []): number[] {
+  const [i, f] = rowAt(table, tiltRadians)
   const a = table.levels[i]!
   const b = table.levels[i + 1]!
-  return a.map((h, k) => h + (b[k]! - h) * f)
+  out.length = a.length
+  for (let k = 0; k < a.length; k++) out[k] = a[k]! + (b[k]! - a[k]!) * f
+  return out
+}
+
+/** The liquid's lowest point along up at a tilt from upright, in radians, either way. */
+export function floorAt(table: LevelTable, tiltRadians: number): number {
+  const [i, f] = rowAt(table, tiltRadians)
+  return table.floors[i]! + (table.floors[i + 1]! - table.floors[i]!) * f
 }

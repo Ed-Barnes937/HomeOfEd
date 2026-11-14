@@ -72,11 +72,7 @@ describe('potionSchema', () => {
       'Square shoulders',
       'Gourd bottle',
     ])
-    expect(choice('stopper').options.map((o) => o.label)).toEqual([
-      'Cork',
-      'Glass stopper',
-      'Sealed with wax',
-    ])
+    expect(choice('stopper').options.map((o) => o.label)).toEqual(['Cork', 'Glass stopper'])
     expect(choice('label').options.map((o) => o.label)).toEqual([
       'No label',
       'Round',
@@ -95,7 +91,7 @@ describe('potionSchema', () => {
     }
     expect(weights('mixed')).toEqual({ no: 1, yes: 0 })
     expect(weights('glass')).toEqual({ clear: 4, sea: 2, amber: 1, violet: 1, smoky: 1 })
-    expect(weights('stopper')).toEqual({ cork: 5, glass: 2, wax: 2 })
+    expect(weights('stopper')).toEqual({ cork: 5, glass: 2 })
     expect(choice('shape').default).toBe('teardrop')
   })
 
@@ -148,6 +144,18 @@ describe('potionSchema', () => {
       expect(slots(p)).toEqual(['moonmilk', 'rosehip', 'frogfizz'])
       const murk = normalise(potionSchema, { pour1: 'bogmurk', pour2: 'frogfizz' })
       expect(slots(murk)).toEqual(['moonmilk', 'frogfizz', 'starpetal'])
+    })
+  })
+
+  describe('a save or link from before the wax seal was cut', () => {
+    it('reads a wax stopper as a cork and keeps the rest', () => {
+      const p = normalise(potionSchema, { shape: 'gourd', glass: 'amber', stopper: 'wax' })
+      expect(p).toEqual({
+        ...defaults(potionSchema),
+        shape: 'gourd',
+        glass: 'amber',
+        stopper: 'cork',
+      })
     })
   })
 

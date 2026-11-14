@@ -9,10 +9,10 @@ import type { IngredientId } from './ingredients.ts'
 import type { LabelId, StopperId } from './potionSchema.ts'
 import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
-import { BASE_MM, bottleProfile, type BottleProfile, LIQUID_GAP_MM } from './profile.ts'
+import { BASE_MM, bandTops, bottleProfile, type BottleProfile, LIQUID_GAP_MM } from './profile.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
-const STOPPERS: StopperId[] = ['cork', 'glass', 'wax']
+const STOPPERS: StopperId[] = ['cork', 'glass']
 const LABELS: LabelId[] = ['round', 'banner', 'tag']
 const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
 
@@ -41,13 +41,13 @@ function entry(
   }
 }
 
-// The heaviest of all 1,260 combinations, necks in 0.05 steps: the most in total, the most
+// The heaviest of all 840 combinations, necks in 0.05 steps: the most in total, the most
 // glass, the most liquid, the most stopper and label.
 const HEAVIEST: Entry[] = [
-  entry('gourd', 1, 'wax', 'tag'),
+  entry('gourd', 1, 'glass', 'tag'),
   entry('gourd', 1, 'cork', 'none'),
   entry('gourd', 0.9, 'cork', 'none'),
-  entry('round', 0.9, 'wax', 'tag'),
+  entry('round', 0.15, 'glass', 'tag'),
 ]
 
 // Every shape at every neck with every label, the stoppers cycled; the teardrop with each
@@ -56,17 +56,12 @@ const CATALOGUE: Entry[] = [
   ...HEAVIEST,
   ...SHAPES.flatMap((shape, s) =>
     [0, 0.5, 1].flatMap((neck, n) =>
-      LABELS.map((label, l) => entry(shape, neck, STOPPERS[(s + n + l) % 3]!, label)),
+      LABELS.map((label, l) => entry(shape, neck, STOPPERS[(s + n + l) % STOPPERS.length]!, label)),
     ),
   ),
   ...STOPPERS.map((stopper) => entry('teardrop', 0.5, stopper, 'none')),
-  entry('round', 0, 'wax', 'round', []),
+  entry('round', 0, 'cork', 'round', []),
   entry('gourd', 1, 'glass', 'banner', ['puffcap']),
-  entry('teardrop', 0.4, 'wax', 'round'),
-  entry('round', 0.1, 'wax', 'banner'),
-  entry('tall', 0, 'wax', 'tag'),
-  entry('shoulder', 1, 'wax', 'tag'),
-  entry('gourd', 1, 'wax', 'banner'),
 ]
 
 const partsOf = (mesh: PotionMesh) =>
@@ -127,30 +122,6 @@ function pieceVolumes(part: MeshPart): number[] {
 }
 
 type Vec = [number, number, number]
-
-/** The vertices of each piece of a part that triangles use. */
-function pieces(part: MeshPart): Vec[][] {
-  const piece = pieceOf(part)
-  const out = new Map<number, Vec[]>()
-  for (const i of new Set(part.indices)) {
-    const id = piece(i)
-    if (!out.has(id)) out.set(id, [])
-    out
-      .get(id)!
-      .push([part.positions[i * 3]!, part.positions[i * 3 + 1]!, part.positions[i * 3 + 2]!])
-  }
-  return [...out.values()]
-}
-
-/** A wax seal's cork, its coat and its runs. */
-function waxPieces(e: Entry): { coat: Vec[]; runs: Vec[][] } {
-  const all = pieces(e.mesh.stopper)
-  const low = (p: Vec[]) => Math.min(...p.map(([, , z]) => z))
-  const high = (p: Vec[]) => Math.max(...p.map(([, , z]) => z))
-  const cork = all.find((p) => Math.abs(low(p) - e.profile.cavityTopZ) < 1e-3)!
-  const coat = all.reduce((a, b) => (high(b) > high(a) ? b : a))
-  return { coat, runs: all.filter((p) => p !== cork && p !== coat) }
-}
 
 const angleOf = ([x, y]: Vec) => Math.atan2(y, x)
 /** The angle from a to b, -PI to PI. */
@@ -258,11 +229,29 @@ describe('buildPotionMesh', () => {
   )
 
   it.each(CATALOGUE.filter((e) => e.spec.label === 'banner'))(
-    '$name: the banner wraps 120 degrees round the front, so both notched ends show',
-    ({ mesh }) => {
+    '$name: the banner wraps 120 degrees round the front, 100 on the round flask, so both notched ends show',
+    ({ spec, mesh }) => {
       const turns = sampled(mesh.label!, Infinity).map((p) => turnBetween(FRONT_ANGLE, angleOf(p)))
-      expect((Math.max(...turns) * 180) / Math.PI).toBeCloseTo(60, 0)
-      expect((Math.min(...turns) * 180) / Math.PI).toBeCloseTo(-60, 0)
+      const half = spec.shape === 'round' ? 50 : 60
+      expect((Math.max(...turns) * 180) / Math.PI).toBeCloseTo(half, 0)
+      expect((Math.min(...turns) * 180) / Math.PI).toBeCloseTo(-half, 0)
+    },
+  )
+
+  it.each(CATALOGUE.filter((e) => e.spec.label === 'banner' && e.spec.shape === 'round'))(
+    '$name: the banner leaves at least 40 percent of the middle of three pours showing from the front',
+    ({ spec, mesh, profile }) => {
+      const [bottom, middle] = bandTops(profile, spec.layers.length)
+      const label = sampled(mesh.label!, Infinity)
+      let band = 0
+      let hidden = 0
+      for (let z = bottom! + 0.125; z < middle!; z += 0.25) {
+        const r = profile.innerR(z)
+        band += 2 * r
+        const xs = label.filter(([, , lz]) => Math.abs(lz - z) <= 1.05).map(([x]) => x)
+        if (xs.length > 0) hidden += Math.min(r, Math.max(...xs)) - Math.max(-r, Math.min(...xs))
+      }
+      expect(1 - hidden / band).toBeGreaterThanOrEqual(0.4)
     },
   )
 
@@ -342,106 +331,61 @@ describe('buildPotionMesh', () => {
     expect(Math.max(...card.uvs.filter((_, i) => i % 2 === 1))).toBeCloseTo(9, 1)
   })
 
-  const WAXED = CATALOGUE.filter((e) => e.spec.stopper === 'wax')
-
-  it.each(WAXED)(
-    '$name: the wax is uneven: its hem wanders round the neck and its top tilts',
-    (e) => {
-      const { coat } = waxPieces(e)
-      const sectors = 12
-      const lowest = new Array<number>(sectors).fill(Infinity)
-      for (const p of coat) {
-        const k = Math.floor(((angleOf(p) + Math.PI) / (2 * Math.PI)) * sectors) % sectors
-        lowest[k] = Math.min(lowest[k]!, p[2])
+  it.each(CATALOGUE)(
+    "$name: the glass marks its cavity's and bore's surface inner, its outside outer",
+    ({ name, mesh, profile }) => {
+      const { positions: p, normals: n, indices } = mesh.glass
+      const inner = mesh.glass.attrs.aInner!
+      expect(inner).toHaveLength(p.length / 3)
+      const at = (i: number) => {
+        const r = Math.hypot(p[i * 3]!, p[i * 3 + 1]!)
+        const radial = r < 1e-6 ? 0 : (n[i * 3]! * p[i * 3]! + n[i * 3 + 1]! * p[i * 3 + 1]!) / r
+        return { r, z: p[i * 3 + 2]!, radial, nz: n[i * 3 + 2]!, inner: inner[i] }
       }
-      expect(Math.max(...lowest) - Math.min(...lowest)).toBeGreaterThan(1)
-      // The lift moves only heights, so each ring of the lathe keeps its radius: take the widest
-      // ring over the cork's top and see how far its heights spread round the neck.
-      const rings = new Map<string, number[]>()
-      for (const p of coat.filter((q) => q[2] > e.profile.lipZ + 2)) {
-        const r = Math.hypot(p[0], p[1])
-        if (r < 0.95 * e.profile.stopperSeat.r)
-          rings.set(r.toFixed(3), [...(rings.get(r.toFixed(3)) ?? []), p[2]])
-      }
-      const widest = [...rings.keys()].sort((a, b) => Number(b) - Number(a))[0]!
-      const heights = rings.get(widest)!
-      expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(0.15)
-    },
-  )
-
-  it.each(WAXED)(
-    '$name: three to five runs of clearly different lengths, unevenly spaced, each ending in a bead',
-    (e) => {
-      const { coat, runs } = waxPieces(e)
-      expect(runs.length).toBeGreaterThanOrEqual(3)
-      expect(runs.length).toBeLessThanOrEqual(5)
-      const ring = e.profile.wax!.ringMm
-      const measured = runs.map((run) => {
-        const mid = run.reduce((s, p) => [s[0] + p[0], s[1] + p[1], 0] as Vec, [0, 0, 0] as Vec)
-        const angle = angleOf(mid)
-        const hem = Math.min(
-          ...coat.filter((p) => Math.abs(turnBetween(angle, angleOf(p))) < 0.2).map(([, , z]) => z),
-        )
-        const foot = Math.min(...run.map(([, , z]) => z))
-        const top = Math.max(...run.map(([, , z]) => z))
-        // Its width by height, foot to top: it narrows from the hem and swells to a bead.
-        const side = (p: Vec) => Math.abs(-Math.sin(angle) * p[0] + Math.cos(angle) * p[1])
-        const widths = new Array<number>(12).fill(0)
-        for (const p of run) {
-          const k = Math.min(11, Math.floor(((p[2] - foot) / (top - foot)) * 12))
-          widths[k] = Math.max(widths[k]!, side(p))
+      const seen = { towards: 0, away: 0, floor: 0, foot: 0, lip: 0 }
+      for (let i = 0; i < inner.length; i++) {
+        const v = at(i)
+        expect(v.inner === 0 || v.inner === 1, `${name} vertex ${i}`).toBe(true)
+        if (v.radial < -0.2) {
+          expect(v.inner, `${name} faces the axis at z ${v.z}`).toBe(1)
+          seen.towards++
         }
-        const bead = Math.max(...widths.slice(0, 3))
-        const stem = Math.min(...widths.slice(2, 8))
-        expect(bead / stem, 'a bead at the foot').toBeGreaterThan(1.15)
-        return { angle, length: hem - foot }
-      })
-      const lengths = measured.map((m) => m.length).sort((a, b) => a - b)
-      for (let i = 1; i < lengths.length; i++)
-        expect(lengths[i]! / lengths[i - 1]!).toBeGreaterThan(1.25)
-      if (e.profile.wax!.hemZ - e.profile.wax!.floorZ > 1.2 * ring) {
-        expect(lengths[0]! / ring).toBeGreaterThan(0.25)
-        expect(lengths[0]! / ring).toBeLessThan(0.4)
-        expect(lengths.at(-1)! / ring).toBeGreaterThan(0.9)
-        expect(lengths.at(-1)! / ring).toBeLessThan(1.1)
+        if (v.radial > 0.2) {
+          expect(v.inner, `${name} faces away at z ${v.z}`).toBe(0)
+          seen.away++
+        }
+        if (Math.abs(v.z - BASE_MM) < 1e-3 && v.nz > 0.99) {
+          expect(v.inner, `${name} cavity floor`).toBe(1)
+          seen.floor++
+        }
+        if (v.z < 1 && v.nz < -0.99) {
+          expect(v.inner, `${name} foot`).toBe(0)
+          seen.foot++
+        }
+        const lipRing = (profile.neckR + profile.stopperSeat.r) / 2
+        if (Math.abs(v.z - profile.lipZ) < 1e-3 && v.nz > 0.99 && v.r >= lipRing) {
+          expect(v.inner, `${name} lip top`).toBe(0)
+          seen.lip++
+        }
       }
-      const angles = measured.map((m) => m.angle).sort((a, b) => a - b)
-      const gaps = angles.map((a, i) => (i ? a - angles[i - 1]! : a + 2 * Math.PI - angles.at(-1)!))
-      expect(Math.max(...gaps) / Math.min(...gaps)).toBeGreaterThan(1.5)
+      for (const [where, count] of Object.entries(seen)) expect(count, where).toBeGreaterThan(0)
+      for (let t = 0; t < indices.length; t += 3) {
+        const flag = inner[indices[t]!]
+        expect(inner[indices[t + 1]!], `${name} triangle ${t / 3}`).toBe(flag)
+        expect(inner[indices[t + 2]!], `${name} triangle ${t / 3}`).toBe(flag)
+      }
     },
   )
 
-  it.each(WAXED)('$name: no wax reaches the shoulder or a tag string', (e) => {
-    const { floorZ } = e.profile.wax!
-    const outside = sampled(e.mesh.stopper, Infinity).filter(
-      ([x, y]) => Math.hypot(x, y) > e.profile.stopperSeat.r,
-    )
-    const lowest = Math.min(...outside.map(([, , z]) => z))
-    expect(lowest).toBeGreaterThanOrEqual(floorZ - 1e-6)
-    expect(lowest).toBeGreaterThan(e.profile.shoulderZ + 0.9)
-    if (e.spec.label === 'tag') {
-      const highestString = Math.max(
-        ...tagLayout(e.profile)
-          .string.filter(
-            ([x, y, z]) => z > e.profile.shoulderZ && Math.hypot(x, y) < 2 * e.profile.neckR,
-          )
-          .map(([, , z]) => z),
-      )
-      expect(lowest).toBeGreaterThan(highestString + 0.4 + 0.5)
-    }
+  it.each(CATALOGUE)('$name: the stopper is solid, so nothing of it is inner', ({ mesh }) => {
+    const inner = mesh.stopper.attrs.aInner!
+    expect(inner).toHaveLength(mesh.stopper.positions.length / 3)
+    expect(inner.every((f) => f === 0)).toBe(true)
   })
 
-  it('has no label part without a label, and a wax seal with runs below its coat', () => {
-    const plain = CATALOGUE.find((e) => e.spec.label === 'none' && e.spec.stopper === 'wax')!
-    expect(plain.mesh.label).toBeNull()
+  it('has no label part without a label, and a cork reaching down to the cavity', () => {
     const cork = CATALOGUE.find((e) => e.spec.label === 'none' && e.spec.stopper === 'cork')!
-    const low = (e: Entry) =>
-      Math.min(
-        ...sampled(e.mesh.stopper, Infinity)
-          .filter(([x, y]) => Math.hypot(x, y) > e.profile.stopperSeat.r + 1)
-          .map(([, , z]) => z),
-      )
-    expect(low(plain)).toBeLessThan(plain.profile.lipZ - 2 * BOTTLES.teardrop.lipMm - 4)
+    expect(cork.mesh.label).toBeNull()
     expect(Math.min(...sampled(cork.mesh.stopper, Infinity).map(([, , z]) => z))).toBeCloseTo(
       cork.profile.cavityTopZ,
       3,

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import { defaults, normalise } from '../engine/schema.ts'
-import { type LinearRgb, linearToSrgb, srgbToLinear } from '../items/colour.ts'
 import { BOTTLES, drawnHeightMm } from './bottles.ts'
 import { compilePotion } from './compile.ts'
 import { TALLEST_MM } from './framing.ts'
@@ -31,7 +30,6 @@ describe('compilePotion', () => {
       label: 'round',
       fill: 1,
       mixed: false,
-      waxColour: null,
     })
     expect(spec.layers).toEqual([
       { ingredient: 'moonmilk', colour: ingredient('moonmilk').colour, trait: 'cloud' },
@@ -85,31 +83,6 @@ describe('compilePotion', () => {
       const spec = compilePotion(potion([...recipe], { mixed: 'yes' }))
       expect(spec.layers.map((l) => l.ingredient)).toEqual(recipe)
       expect(spec.fill).toBe(1)
-    })
-
-    it('takes the wax from the mixed colour when mixed, the top layer when not', () => {
-      const darkened = (hex: string) =>
-        linearToSrgb(srgbToLinear(hex).map((v) => v * 0.65) as LinearRgb)
-      const mixed = compilePotion(potion([...recipe], { mixed: 'yes', stopper: 'wax' }))
-      expect(mixed.waxColour).toBe(darkened(mixPotion(recipe).colour))
-      const unmixed = compilePotion(potion([...recipe], { stopper: 'wax' }))
-      expect(unmixed.waxColour).toBe(darkened(ingredient('bluebell').colour))
-    })
-  })
-
-  describe('waxColour', () => {
-    it('is the top pour darkened by 35 percent in linear light under wax', () => {
-      const spec = compilePotion(potion(['moonmilk', 'frogfizz'], { stopper: 'wax' }))
-      const expected = linearToSrgb(
-        srgbToLinear(ingredient('frogfizz').colour).map((v) => v * 0.65) as LinearRgb,
-      )
-      expect(spec.waxColour).toBe(expected)
-    })
-
-    it('is a dull red on an empty bottle and null without wax', () => {
-      expect(compilePotion(potion([], { stopper: 'wax' })).waxColour).toBe('#7a2a24')
-      expect(compilePotion(potion(['frogfizz'], { stopper: 'cork' })).waxColour).toBeNull()
-      expect(compilePotion(potion([], { stopper: 'glass' })).waxColour).toBeNull()
     })
   })
 })

@@ -10,9 +10,7 @@ type Point = [number, number]
 const CORK = '#a7814f'
 
 function stopperColour(spec: PotionSpec): string {
-  if (spec.stopper === 'glass') return GLASS_TINTS[spec.glass]
-  if (spec.stopper === 'wax') return spec.waxColour ?? CORK
-  return CORK
+  return spec.stopper === 'glass' ? GLASS_TINTS[spec.glass] : CORK
 }
 
 /** The bands' risen sides run on into one column, mirrored back down: a single fill to the full level. */
@@ -41,7 +39,12 @@ export const PotionOutline = memo(function PotionOutline({
   const viewBox = [-widthMm / 2 - pad, -pad, widthMm + pad * 2, heightMm + pad * 2].join(' ')
   const liquid = spec.mix && spec.mixed ? mixedLiquid(silhouette.bands, spec.mix.colour) : null
   return (
-    <svg className={className} viewBox={viewBox} aria-hidden="true">
+    <svg
+      className={className}
+      viewBox={viewBox}
+      preserveAspectRatio="xMidYMax meet"
+      aria-hidden="true"
+    >
       {(liquid ?? silhouette.bands).map((band, i) => (
         <path key={i} d={pathOf(band.points)} fill={band.colour} />
       ))}

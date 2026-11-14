@@ -132,6 +132,7 @@ export function CloseUp({
             <Stage
               ref={stageRef}
               params={params}
+              name={item.name ?? derivedName}
               reducedMotion={reducedMotion}
               boxPose={boxPose}
               onLift={onLift}

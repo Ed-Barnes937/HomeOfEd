@@ -31,10 +31,10 @@ test('choosing the bottle and its finish changes what is drawn and the card', as
 
   await root.chooseIn('Shape', 'Gourd bottle')
   await root.chooseIn('Glass', 'Amber')
-  await root.chooseIn('Stopper', 'Sealed with wax')
+  await root.chooseIn('Stopper', 'Glass stopper')
   await root.chooseIn('Label', 'Tag on a string')
 
-  await root.verifyStage({ shape: 'gourd', glass: 'amber', stopper: 'wax', label: 'tag' })
+  await root.verifyStage({ shape: 'gourd', glass: 'amber', stopper: 'glass', label: 'tag' })
   await root.verifyPotionName('Moonmilk, Rosehip and Starpetal')
   await root.verifyDescription('Three layers in a gourd bottle. Cloudy, then swirly, then sparkly.')
   expect(await root.potionNumber()).not.toBe(number)
@@ -59,6 +59,12 @@ test('Try another keeps a kept bottle, never pours fewer than two, and offers no
   expect(pours).not.toBe(before)
   expect(pours.split(',').length).toBeGreaterThanOrEqual(2)
   await expect(page.getByRole('button', { name: 'Put the last one back' })).toHaveCount(0)
+})
+
+test("a renamed potion's name reaches the stage for its label", async ({ mountApp }) => {
+  const { root } = await mountApp()
+  await root.rename('Fizz')
+  await root.verifyStage({ name: 'Fizz' })
 })
 
 test('a renamed potion keeps its name and its shape after a reload', async ({ mountApp }) => {
@@ -162,13 +168,10 @@ const savedPotion = (params: Params) => ({
 
 async function startWith(page: Page, params: Params, reload: () => Promise<void>): Promise<void> {
   await reload()
-  await page.evaluate(
-    ([key, saved]) => window.localStorage.setItem(key, saved),
-    [
-      POTION_SAVE_KEY,
-      JSON.stringify({ version: 1, working: { params: savedPotion(params) }, shelf: [] }),
-    ] as const,
-  )
+  await page.evaluate(([key, saved]) => window.localStorage.setItem(key, saved), [
+    POTION_SAVE_KEY,
+    JSON.stringify({ version: 1, working: { params: savedPotion(params) }, shelf: [] }),
+  ] as const)
 }
 
 const stage = (page: Page) => page.getByTestId('stage')
@@ -176,7 +179,7 @@ const revealMs = MIX_REVEAL_SECONDS * 1000
 
 async function stopTheClock(page: Page): Promise<void> {
   await page.clock.install()
-  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1)
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
 }
 
 test('the tap that lifts the bottle mixes it once the reveal has played, and a reload keeps it', async ({
@@ -311,6 +314,77 @@ test.describe('on a phone', () => {
     await root.verifyStage({ shape: 'shoulder' })
   })
 })
+
+// The generated texts that wrap to the most lines, found by setting every name and tag line on the card.
+const LONGEST_TEXTS: [Params, string][] = [
+  [
+    { ...withPours(['emberroot', 'thundercloud', 'starpetal']), shape: 'shoulder' },
+    'Emberroot, Thundercloud and Starpetal',
+  ],
+  [
+    { ...withPours(['frogfizz', 'thundercloud', 'thundercloud']), shape: 'shoulder', mixed: 'yes' },
+    'Sparkling Thundercloud Wonder',
+  ],
+]
+
+for (const size of [
+  { width: 360, height: 640 },
+  { width: 375, height: 667 },
+  { width: 390, height: 844 },
+  { width: 900, height: 700 },
+  { width: 900, height: 900 },
+  { width: 1024, height: 768 },
+  { width: 1180, height: 820 },
+  { width: 1280, height: 720 },
+  { width: 1440, height: 900 },
+]) {
+  test.describe(`at ${size.width} by ${size.height}`, () => {
+    test.use({ viewport: size })
+
+    test('the longest card and the hint are whole and apart, mixed or not', async ({
+      mountApp,
+      page,
+    }) => {
+      let { root } = await mountApp()
+      for (const [params, name] of LONGEST_TEXTS) {
+        await startWith(page, params, () => root.reload())
+        ;({ root } = await mountApp())
+        await root.verifyPotionName(name)
+        await root.verifyCardAndHintFit()
+      }
+    })
+
+    test('the bottle stands inside the scene, at least half its shadow in view', async ({
+      mountApp,
+      page,
+    }) => {
+      let { root } = await mountApp()
+      await root.verifyBottleInScene()
+      for (const params of [TALLEST, SECRET_BLEND, ...LONGEST_TEXTS.map(([p]) => p)]) {
+        await startWith(page, params, () => root.reload())
+        ;({ root } = await mountApp())
+        await root.verifyBottleInScene()
+      }
+    })
+
+    test("the card hangs clear of the bottle's foot and its shadow", async ({ mountApp, page }) => {
+      let { root } = await mountApp()
+      await root.verifyFootingClearOfCard()
+      for (const params of [TALLEST, SECRET_BLEND]) {
+        await startWith(page, params, () => root.reload())
+        ;({ root } = await mountApp())
+        await root.verifyFootingClearOfCard()
+      }
+    })
+  })
+}
+
+const TALLEST: Params = {
+  ...withPours(['thundercloud', 'snailshine', 'moonmilk']),
+  shape: 'tall',
+  neck: 1,
+}
+const SECRET_BLEND = potionPresets.find((preset) => preset.name === 'Early Riser')!.params
 
 failedApothecaryStageTest(
   'a potion stage that fails to load leaves the table, card and controls working',

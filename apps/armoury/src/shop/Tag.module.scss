@@ -81,7 +81,7 @@
 
 @media (max-width: 899px) {
   .tag {
-    width: min(320px, 82%);
+    width: var(--tag-width, min(320px, 82%));
     transform: rotate(-2deg);
   }
 

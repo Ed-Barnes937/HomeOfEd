@@ -2,18 +2,14 @@
 // millimetres, the axis z, the foot at z = 0. Three-free; only stage/ builds meshes from it.
 
 import type { MeshPart, Vec3 } from '../sword/sweep.ts'
+import type { ShapeId } from './bottles.ts'
 import type { PotionSpec } from './compile.ts'
-import {
-  bottleProfile,
-  type BottleProfile,
-  FIT_MM,
-  type ProfilePoint,
-  tagLoopZ,
-  type WaxDip,
-  waxRun,
-} from './profile.ts'
+import { bottleProfile, type BottleProfile, type ProfilePoint, tagLoopZ } from './profile.ts'
 
-/** Each part's `aHeight` is a vertex's height along the bottle's own axis, z in mm. */
+/**
+ * Each part's `aHeight` is a vertex's height along the bottle's own axis, z in mm. The glass's
+ * and the stopper's `aInner` is 1 on a surface that lines a hollow (the bore, the cavity), else 0.
+ */
 export interface PotionMesh {
   glass: MeshPart
   liquid: MeshPart
@@ -35,8 +31,12 @@ const PAPER_GRID_MM = 2
  */
 const ROUND_SHARE = 0.6
 const ROUND_HEIGHT_SHARE = 0.32
-const BANNER_TURN = (120 * Math.PI) / 180
-const BANNER_HALF_HEIGHT = 9
+/**
+ * How far the banner wraps, its half height and how far below the widest band it sits. The round
+ * flask's middle pours fill its widest band, so its banner is smaller and sits a little lower.
+ */
+const BANNER = { turn: (120 * Math.PI) / 180, halfHeight: 9, dropMm: 0 }
+const ROUND_BANNER = { turn: (100 * Math.PI) / 180, halfHeight: 6, dropMm: 5 }
 const BANNER_NOTCH = 5
 const CARD_HALF_WIDTH = 13
 const CARD_HALF_HEIGHT = 9
@@ -55,27 +55,6 @@ const STRING_STEP = 1.5
 const STRING_U_MM = 2
 /** How far round from the front each strand leaves the loop. */
 const STRING_OPEN = 0.6
-/** Each run of wax: its angle round from the front, and its length below the hem in ring diameters. */
-const WAX_RUNS: [angle: number, length: number][] = [
-  [-0.55, 0.6],
-  [0.3, 1],
-  [1.75, 0.3],
-  [3.6, 0.42],
-]
-/** A run's half width where it leaves the hem and down its stem, and its bead's radius, in ring diameters. */
-const RUN_ROOT = 0.1
-const RUN_WIDTH = 0.06
-const RUN_BEAD = 0.08
-/** How far a run stands off the glass over its half width, and how flat its back lies. */
-const RUN_FLAT = 0.45
-const RUN_BACK = 0.2
-/** How far up into the coat a run's top is buried. */
-const RUN_ROOT_MM = 2
-const RUN_SIDES = 12
-/** The wax's top tilts by up to about this much. */
-const WAX_TILT_MM = 0.35
-/** And its lumps rise and fall by about this much at the cork's edge. */
-const WAX_LUMP_MM = 0.12
 
 class Builder {
   private positions: number[] = []
@@ -144,12 +123,12 @@ const lathe: Place = (r, z, nr, nz, a) => {
 }
 
 /** A closed profile turned about an axis; `place` puts each (r, z, angle) in the part's space. */
-function revolve(b: Builder, curve: ProfilePoint[], segments: number, place: Place = lathe): void {
+function revolve(b: Builder, curve: ProfilePoint[], segments: number): void {
   let along = 0
   const rings = curve.map((pt, i) => {
     if (i > 0) along += Math.hypot(pt.r - curve[i - 1]!.r, pt.z - curve[i - 1]!.z)
     return Array.from({ length: segments + 1 }, (_, j) => {
-      const [p, n] = place(pt.r, pt.z, pt.nr, pt.nz, ((j % segments) / segments) * 2 * Math.PI)
+      const [p, n] = lathe(pt.r, pt.z, pt.nr, pt.nz, ((j % segments) / segments) * 2 * Math.PI)
       return b.vertex(p, n, j / segments, along)
     })
   })
@@ -167,107 +146,6 @@ function lathePart(curves: ProfilePoint[][], segments: number): Builder {
   const b = new Builder()
   for (const curve of curves) revolve(b, curve, segments)
   return b
-}
-
-/**
- * A run lying on the neck at `angle`: its lathe flattened against the glass, its back resting on
- * the neck at radius `back` and its front standing out RUN_FLAT of its half width.
- */
-function runPlace(angle: number, back: number): Place {
-  const out: Vec3 = [Math.cos(angle), Math.sin(angle), 0]
-  const side: Vec3 = [-Math.sin(angle), Math.cos(angle), 0]
-  return (r, z, nr, nz, psi) => {
-    const c = Math.cos(psi)
-    const s = Math.sin(psi)
-    const [q, dq] = c >= 0 ? [c + RUN_BACK, -s] : [RUN_BACK * (1 + c), -RUN_BACK * s]
-    const x = back + RUN_FLAT * r * q
-    const y = r * s
-    // A tip is a crease where the flat back meets the round end: lean its normal off the back.
-    const n = unit(
-      r > 0
-        ? [c * nr, -RUN_FLAT * dq * nr, RUN_FLAT * nz * (q * c - dq * s)]
-        : [Math.min(0, c), 0, Math.sign(nz)],
-    )
-    return [
-      [x * out[0] + y * side[0], x * out[1] + y * side[1], z],
-      [n[0] * out[0] + n[1] * side[0], n[0] * out[1] + n[1] * side[1], n[2]],
-    ]
-  }
-}
-
-/** The hem's wander round the neck, about its mean and within 1.05 either way, and its slope. */
-const WANDER: [amplitude: number, frequency: number, phase: number][] = [
-  [0.35, 1, 1.84],
-  [0.3, 2, 2.75],
-  [0.25, 3, 4.75],
-  [0.15, 5, 4.96],
-]
-const wander = (a: number) => WANDER.reduce((s, [m, k, p]) => s + m * Math.sin(k * a + p), 0)
-const wanderSlope = (a: number) =>
-  WANDER.reduce((s, [m, k, p]) => s + m * k * Math.cos(k * a + p), 0)
-
-/** 0 below z0 rising smoothly to 1 above z1, and its slope. */
-function smoothstep(z: number, z0: number, z1: number): [value: number, slope: number] {
-  const x = Math.max(0, Math.min(1, (z - z0) / (z1 - z0)))
-  return [x * x * (3 - 2 * x), (6 * x * (1 - x)) / (z1 - z0)]
-}
-
-/**
- * The wax's lathe lifted unevenly: the top over the cork tilts and is lumpy, and the hem wanders
- * round the neck. A lift f along z turns a normal n into n - grad f * n.z / (1 + df/dz).
- */
-function waxPlace(profile: BottleProfile, { hemZ, wanderMm }: WaxDip): Place {
-  const { lipZ, neckTopZ } = profile
-  const reach = profile.stopperSeat.r
-  const t = WAX_TILT_MM
-  const l = WAX_LUMP_MM
-  return (r, z, nr, nz, angle) => {
-    const [p, n] = lathe(r, z, nr, nz, angle)
-    const u = p[0] / reach
-    const v = p[1] / reach
-    const [top, topSlope] = smoothstep(z, lipZ + 0.6, lipZ + 1.8)
-    const [above, aboveSlope] = smoothstep(z, hemZ, neckTopZ - 0.2)
-    // A tilt, and three lumps round the top: 0.8 sin 3a + 0.6 cos 3a, growing as r cubed.
-    const lumps = 0.8 * (3 * u * u * v - v ** 3) + 0.6 * (u ** 3 - 3 * u * v * v)
-    const h = t * (0.55 + 0.4 * u - 0.25 * v + 0.2 * u * v) + l * lumps
-    const hu = t * (0.4 + 0.2 * v) + l * (0.8 * 6 * u * v + 0.6 * 3 * (u * u - v * v))
-    const hv = t * (-0.25 + 0.2 * u) + l * (0.8 * 3 * (u * u - v * v) - 0.6 * 6 * u * v)
-    const w = wanderMm * wander(angle)
-    const edge = r > 0 ? (wanderMm * wanderSlope(angle) * (1 - above)) / r : 0
-    const gx = (hu / reach) * top - Math.sin(angle) * edge
-    const gy = (hv / reach) * top + Math.cos(angle) * edge
-    const gz = h * topSlope - w * aboveSlope
-    const k = n[2] / (1 + gz)
-    return [
-      [p[0], p[1], p[2] + h * top + w * (1 - above)],
-      unit([n[0] - gx * k, n[1] - gy * k, n[2] - gz * k]),
-    ]
-  }
-}
-
-function stopperPart(profile: BottleProfile): MeshPart {
-  const { wax } = profile
-  if (!wax) return lathePart(profile.stopper, STOPPER_SEGMENTS).part()
-  const [cork, coat] = profile.stopper as [ProfilePoint[], ProfilePoint[]]
-  const b = lathePart([cork], STOPPER_SEGMENTS)
-  revolve(b, coat, STOPPER_SEGMENTS, waxPlace(profile, wax))
-  const ring = wax.ringMm
-  const hemAt = (angle: number) => wax.hemZ + wax.wanderMm * wander(angle)
-  // One scale for every run, so on a short neck they keep their different lengths.
-  const scale = Math.min(
-    1,
-    ...WAX_RUNS.map(([a, length]) => (hemAt(FRONT_ANGLE + a) - wax.floorZ) / (length * ring)),
-  )
-  for (const [a, length] of WAX_RUNS) {
-    const angle = FRONT_ANGLE + a
-    const hem = hemAt(angle)
-    const long = length * ring * scale
-    const bead = Math.min(RUN_BEAD * ring, long / 2.6)
-    const k = bead / RUN_BEAD
-    const run = waxRun(hem + RUN_ROOT_MM, hem - long, RUN_ROOT * k, RUN_WIDTH * k, bead)
-    revolve(b, run, RUN_SIDES, runPlace(angle, profile.neckR + FIT_MM + 0.05))
-  }
-  return b.part()
 }
 
 /** The glass's outer surface by arc length up the body: radius, height and unit normal. */
@@ -435,17 +313,18 @@ function roundLabel(b: Builder, profile: BottleProfile): void {
   )
 }
 
-function bannerLabel(b: Builder, profile: BottleProfile): void {
+function bannerLabel(b: Builder, profile: BottleProfile, shape: ShapeId): void {
+  const { turn, halfHeight, dropMm } = shape === 'round' ? ROUND_BANNER : BANNER
   const surface = bodySurface(profile)
-  const s0 = surface.sOf(labelCentre(profile))
+  const s0 = surface.sOf(labelCentre(profile) - dropMm)
   const r0 = surface.at(s0).r
-  const half = (r0 * BANNER_TURN) / 2
+  const half = (r0 * turn) / 2
   sheet(
     b,
     paperPlace(surface, s0, () => r0),
-    (a, c) => [a * (half - BANNER_NOTCH * (1 - Math.abs(c))), c * BANNER_HALF_HEIGHT],
+    (a, c) => [a * (half - BANNER_NOTCH * (1 - Math.abs(c))), c * halfHeight],
     gridCount(2 * half),
-    gridCount(2 * BANNER_HALF_HEIGHT),
+    gridCount(2 * halfHeight),
     PAPER_BACK_MM,
     PAPER_FRONT_MM,
   )
@@ -731,17 +610,28 @@ function labelPart(spec: PotionSpec, profile: BottleProfile): MeshPart | null {
   if (spec.label === 'none') return null
   const b = new Builder()
   if (spec.label === 'round') roundLabel(b, profile)
-  else if (spec.label === 'banner') bannerLabel(b, profile)
+  else if (spec.label === 'banner') bannerLabel(b, profile, spec.shape)
   else tagLabel(b, profile)
   return b.part()
+}
+
+/** `part` with `aInner` set on its vertices from `firstInner` on. */
+function withInner(part: MeshPart, firstInner = Infinity): MeshPart {
+  const inner = new Float32Array(part.positions.length / 3)
+  inner.fill(1, Math.min(firstInner, inner.length))
+  return { ...part, attrs: { ...part.attrs, aInner: inner } }
 }
 
 export function buildPotionMesh(spec: PotionSpec): PotionMesh {
   const profile = bottleProfile(spec)
   return {
-    glass: lathePart([profile.glass], SEGMENTS).part(),
+    // A lathe emits SEGMENTS + 1 vertices per curve point, in the curve's order.
+    glass: withInner(
+      lathePart([profile.glass], SEGMENTS).part(),
+      profile.glassOutside * (SEGMENTS + 1),
+    ),
     liquid: lathePart([profile.liquid], SEGMENTS).part(),
-    stopper: stopperPart(profile),
+    stopper: withInner(lathePart(profile.stopper, STOPPER_SEGMENTS).part()),
     label: labelPart(spec, profile),
   }
 }

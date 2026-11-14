@@ -24,6 +24,8 @@ export interface StageHandle {
 export interface StageProps {
   params: Params
   reducedMotion: boolean
+  /** The name the shop shows, renamed or generated; the potion's label prints it. */
+  name?: string
   ref?: Ref<StageHandle>
 }
 
@@ -46,6 +48,8 @@ export interface CloseUpHandle {
 export interface CloseUpProps {
   params: Params
   reducedMotion: boolean
+  /** The name the shop shows, renamed or generated; the potion's label prints it. */
+  name?: string
   /** Read when the wand lifts and again when it goes back, as the box may have moved. */
   boxPose: () => BoxPose
   /** The close look has drawn the wand, so the box can show empty. */

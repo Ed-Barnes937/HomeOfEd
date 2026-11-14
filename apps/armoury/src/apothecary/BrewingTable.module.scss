@@ -1,39 +1,56 @@
-// A plain dark room and a flat table edge.
+// Everything is placed from the bottle's foot: --bottle-x across the scene and --floor down it,
+// the box stage --slot tall, and the room's board at --u per unit (1px when the slot is 460px).
+// The foot stands far enough right that the candle's dish, 433 units to its left, is never cut,
+// and far enough left that the bottle stands 24px inside the scene with half its shadow in view;
+// where both cannot hold for the furthest-reaching bottle, the slot shrinks until they do.
 .scene {
-  --slot: min(46vh, 420px, 70vw);
+  --fit-u: min(
+    calc((100cqw - 36px) / (433 + 460 * var(--reach-half-w))),
+    calc((100cqw - 20px) / (433 + 460 * var(--reach-shadow-mid)))
+  );
+  --slot: min(460px, 51cqh, calc(var(--fit-u) * 460));
+  --u: calc(var(--slot) / 460);
+  --bottle-x: min(
+    max(56cqw, calc(var(--u) * 433 + 12px)),
+    calc(100cqw - max(var(--half-w) * var(--slot) + 24px, var(--shadow-mid) * var(--slot) + 8px))
+  );
+  --floor: min(70cqh, calc(100cqh - 280px));
+  --card-left: max(28px, calc(var(--bottle-x) - var(--u) * 560));
+  --card-top: calc(var(--floor) + var(--u) * 44);
+  --card-w: clamp(380px, calc(100cqw - var(--card-left) - 190px), 430px);
+  --hint-left: max(
+    calc(var(--card-w) + 20px),
+    calc(var(--bottle-x) - var(--card-left) - var(--u) * 10)
+  );
+  --hole-x: 24px;
+  --twine: var(--string);
 
   position: relative;
   height: 100%;
   overflow: hidden;
-  background: radial-gradient(
-    ellipse 70% 60% at 50% 45%,
-    var(--panel-line) 0%,
-    var(--shop-dark) 70%
-  );
+  container-type: size;
+  background: #0b070a;
   isolation: isolate;
 }
 
 .display {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  padding: 96px 24px 24px;
+  position: absolute;
+  inset: 0;
 }
 
 .bottle {
-  position: relative;
-  z-index: 1;
-  flex: none;
+  position: absolute;
+  left: calc(var(--bottle-x) - var(--slot) / 2);
+  top: calc(var(--floor) - var(--slot) * var(--base-line));
   width: var(--slot);
   height: var(--slot);
-  // The stage's foot line sits on the table's top edge.
-  margin-bottom: calc(var(--slot) * (var(--base-line) - 1));
   padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
   touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 
   &:focus-visible {
     outline: none;
@@ -42,32 +59,131 @@
   }
 }
 
+.shadow,
+.tie {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+// The light through the liquid pooled on the table, and a faint tint of it round the foot.
+.glow {
+  position: absolute;
+  left: calc(50% + var(--glow-x) * 100%);
+  top: calc((var(--base-line) + var(--glow-y)) * 100%);
+  width: calc(var(--glow-w) * 240%);
+  height: calc(var(--glow-w) * 44%);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgba(var(--glow-rgb), 0.5) 0%,
+    rgba(var(--glow-rgb), 0.16) 45%,
+    rgba(var(--glow-rgb), 0) 100%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -60%;
+    right: 40%;
+    top: -20%;
+    bottom: -20%;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      rgba(var(--glow-rgb), 0.12) 0%,
+      rgba(var(--glow-rgb), 0) 100%
+    );
+  }
+}
+
 .stageSlot {
   position: absolute;
   inset: 0;
 }
 
-.display[data-empty] .stageSlot {
+.display[data-empty] .stageSlot,
+.display[data-empty] .shadow,
+.display[data-empty] .glow,
+.display[data-empty] .tie {
   visibility: hidden;
 }
 
-.table {
-  flex: none;
-  width: calc(100% + 48px);
-  height: 40px;
-  border-top: 3px solid var(--panel-line-strong);
-  background: linear-gradient(180deg, var(--panel) 0%, var(--shop-black) 100%);
+.card {
+  position: absolute;
+  left: var(--card-left);
+  top: var(--card-top);
+  width: var(--card-w);
+
+  &[data-gold] {
+    --paper: var(--gold-paper);
+    --paper-shade: var(--gold-paper-shade);
+    --paper-ink: var(--gold-ink);
+    --paper-ink-soft: var(--gold-ink-soft);
+    --paper-ink-faint: var(--gold-ink-faint);
+    --string: var(--gold-string);
+    --twine: var(--gold-string);
+  }
 }
 
-.cardRow {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  width: min(720px, 100%);
-  margin-top: -16px;
+.tagBox {
+  position: relative;
 }
 
+// A gilt edge drawn round the clipped paper: four hairline shadows, then the paper's own.
+.card[data-gold] .paper {
+  --shadow-paper: 0 0 0 transparent;
+
+  filter: drop-shadow(1.5px 0 0 var(--gold-edge)) drop-shadow(-1.5px 0 0 var(--gold-edge))
+    drop-shadow(0 1.5px 0 var(--gold-edge)) drop-shadow(0 -1.5px 0 var(--gold-edge))
+    drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
+}
+
+// From the card's hole up to the bottle's neck, where the string is tied.
+.twine {
+  position: absolute;
+  left: var(--hole-x);
+  bottom: 50%;
+  width: calc(var(--bottle-x) - var(--slot) * var(--tie-w) - var(--card-left) - var(--hole-x));
+  height: calc(var(--card-top) - var(--floor) + var(--slot) * var(--tie-h) + 50%);
+  overflow: visible;
+  fill: none;
+  pointer-events: none;
+
+  path {
+    vector-effect: non-scaling-stroke;
+    stroke-linecap: round;
+  }
+}
+
+.twineShade {
+  stroke: rgba(30, 16, 12, 0.85);
+  stroke-width: 3.6;
+}
+
+.twineStrand {
+  stroke: var(--twine);
+  stroke-width: 2.4;
+}
+
+.twineTwist {
+  stroke: rgba(70, 46, 24, 0.7);
+  stroke-width: 2.2;
+  stroke-dasharray: 1 3.5;
+}
+
+// Beside the card, wrapping short of the scene's right edge.
 .hint {
+  position: absolute;
+  left: var(--hint-left);
+  top: calc(var(--floor) - var(--card-top) + var(--u) * 150);
+  width: calc(100cqw - var(--card-left) - var(--hint-left) - 16px);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -83,28 +199,46 @@
   }
 }
 
+// A desk scene too narrow for the hint beside the card: it goes under the card, and the foot
+// rises to make room. The scene can't query itself, so its children take the values.
+@media (min-width: 900px) {
+  @container (max-width: 599px) {
+    .scene > * {
+      --card-w: min(430px, calc(100cqw - 2 * var(--card-left)));
+      --floor: min(70cqh, calc(100cqh - 270px));
+      --card-top: calc(var(--floor) + var(--u) * 44);
+    }
+
+    .hint {
+      position: static;
+      width: auto;
+      margin: 8px 0 0 8px;
+    }
+  }
+}
+
+// Under the bottle the card, the scene's width so the longest texts wrap to fewer lines, hangs
+// from the foot, which rises on a short scene so the longest card and the hint fit; the bottle
+// shrinks to keep its stopper under the header's buttons. The card's tilt lifts its top edge
+// under the bottle by --card-rise: the card hangs that much lower and the foot rises as much.
 @media (max-width: 899px) {
   .scene {
-    --slot: min(26dvh, 200px);
-  }
-
-  .display {
-    padding: 72px 14px 12px;
-  }
-
-  .table {
-    height: 24px;
-  }
-
-  .cardRow {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-    margin-top: -8px;
+    --header-clear: 60px;
+    --slot: min(224px, 50cqh, calc((var(--floor) - var(--header-clear)) * 1.35));
+    --bottle-x: 60cqw;
+    --card-rise: calc((var(--bottle-x) - var(--card-left)) * tan(2.2deg));
+    --floor: min(62cqh, calc(100cqh - 176px - var(--card-rise)));
+    --card-left: 14px;
+    --card-w: calc(100cqw - 28px);
+    --tag-width: 100%;
+    --card-top: calc(var(--floor) + var(--u) * 24 + var(--card-rise));
+    --hole-x: 18px;
   }
 
   .hint {
-    margin-left: 6px;
+    position: static;
+    width: auto;
+    margin: 6px 0 0 6px;
     font-size: 16px;
   }
 }

@@ -6,10 +6,10 @@ import { BOTTLES, type ShapeId } from '../potion/bottles.ts'
 import { compilePotion } from '../potion/compile.ts'
 import { BASE_LINE, TALLEST_MM } from '../potion/framing.ts'
 import { buildPotionMesh } from '../potion/geometry.ts'
-import { uprightLevels } from '../potion/profile.ts'
+import { BASE_MM, LIQUID_GAP_MM, uprightLevels } from '../potion/profile.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
 import { withPours } from '../potion/pours.ts'
-import { levelsAt, levelTable } from '../potion/tipped.ts'
+import { floorAt, levelsAt, levelTable } from '../potion/tipped.ts'
 import { boxCameraPosition } from './boxRig.tsx'
 import { CAMERA_DISTANCE, hitGeometry, uprightScale, type HeldItem } from './HeldRig.tsx'
 import { LEAN_MARGIN, LEAN_MAX, leanShiftMm } from './hold.ts'
@@ -27,6 +27,7 @@ describe("the potion's buffers", () => {
     for (const part of [g.glass, g.liquid, g.stopper, g.label!])
       for (const name of ['position', 'normal', 'uv', 'aHeight'])
         expect(part.getAttribute(name), name).toBeDefined()
+    for (const part of [g.glass, g.stopper]) expect(part.getAttribute('aInner')).toBeDefined()
     expect(g.liquid.getIndex()!.count).toBeGreaterThan(0)
     expect(fillGeometries(null, buildPotionMesh(potion({ label: 'none' }))).label).toBeNull()
   })
@@ -88,6 +89,8 @@ describe("the liquid's band tops", () => {
     liquidLevels(other, upright, () => table).forEach((h, i) =>
       expect(h).toBeCloseTo(expected[i]!, 9),
     )
+    const out: number[] = []
+    expect(liquidLevels(u, upright, () => table, out)).toBe(out)
   })
 })
 
@@ -174,13 +177,15 @@ describe('the liquid as it is drawn, on a posed scene graph', () => {
   const Z = new THREE.Vector3(0, 0, 1)
   const spec = potion({ shape: 'round', neck: 0.5 })
   const table = levelTable(spec)
-  const built = { upright: uprightLevels(spec) }
+  const built = { upright: uprightLevels(spec), floor: BASE_MM + LIQUID_GAP_MM }
   const work = () => ({
     u: new THREE.Vector3(),
     bottle: new THREE.Quaternion(),
     up: new THREE.Quaternion(),
     at: new THREE.Vector3(),
     scale: new THREE.Vector3(),
+    levels: [] as number[],
+    floor: 0,
     table: () => table,
   })
 
@@ -209,6 +214,20 @@ describe('the liquid as it is drawn, on a posed scene graph', () => {
     const tops = liquidTops(liquid, { built, upFrom }, w)
     expect(w.u.angleTo(Z) / DEGREE).toBeCloseTo(30, 6)
     tops.forEach((h, i) => expect(h).toBeCloseTo(levelsAt(table, 30 * DEGREE)[i]!, 6))
+    expect(tops).toBe(w.levels)
+  })
+
+  test('tipped, the floor is the lowest point along up; upright, the mesh floor', () => {
+    const tipped = posed(0, 60 * DEGREE)
+    const w = work()
+    liquidTops(tipped.liquid, { built, upFrom: tipped.upFrom }, w)
+    expect(w.floor).toBeCloseTo(floorAt(table, 60 * DEGREE), 6)
+    expect(w.floor).toBeLessThan(built.floor - 20)
+    liquidTops(tipped.liquid, { built, upFrom: tipped.upFrom, levels: [40, 50] }, w)
+    expect(w.floor).toBeCloseTo(floorAt(table, 60 * DEGREE), 6)
+    const upright = posed(0, 0)
+    liquidTops(upright.liquid, { built, upFrom: upright.upFrom }, w)
+    expect(w.floor).toBe(built.floor)
   })
 
   test('a 10 degree wobble given as the surface normal comes out 20 degrees off the axis', () => {
