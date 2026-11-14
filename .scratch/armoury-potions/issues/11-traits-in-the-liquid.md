@@ -1,6 +1,6 @@
 # 11 - What is in the liquid: the traits
 
-**Status:** ready-for-agent (waits for ticket 10)
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 10, 20
@@ -109,3 +109,4 @@ read as a soft red cloud, never as murk.
 ## Comments
 - 2026-11-13 planner (re-plan, E13-E17): three layers at most; Puffcap (spores) replaces Bog murk (specks); the `murk` trait and the mixed state belong to ticket 23, which reuses these trait programs for a whole bottle.
 - 2026-11-14 orchestrator, from the final visual gate of tickets 10 and 13 (`shots/10/r3/review.md`): the liquids are now a step brighter and flatter (they match their jars; the round flask's bottom band reads 0.77 of centre brightness at its foot, was 0.65). Restore L2's depth here: darken towards the lower body and the edges (bottom band back to about 0.65) without changing the centre colour; glitter and swirl do the rest; keep sparkle on the candle's side. Thundercloud reads ink indigo in the bottle against a violet jar chip (a taste call left to Ed). Read the notes for this ticket in `reviews/10-r1.md`, `10-r2.md` and `10-r3.md` too.
+- 2026-11-14 orchestrator: done, merged as ef362dd2. Round 1 (Opus, d2c38dd0, e2fb8274) built the traits and the motes; its review (`reviews/11-r1.md`) asked for changes: bubbles that raced and popped when the surface moved, fizz that did not read at rest, Snailshine as pool caustics, two wrong ADR claims. Round 2 (fresh Opus, fa15327a, edae50c2, on top of a merge of ticket 14's slosh) fixed them; its review (`reviews/11-r2.md`) passed code and look. Two of that review's should-fixes went in before the merge (Sonnet, 135b2f0e, read by the orchestrator): Emberroot's heat no longer rides the sloshed up, and the bubbles' numbers have one source for the shader and its TypeScript twin. Added outside the ticket's file list: `src/potion/traits.ts`. Checks on the merged tree: lint, typecheck, vitest 2020, CT 182 of 182, build. Frames: `shots/11/r1/`, `shots/11/r2/`. Taste calls for Ed are in `for-ed.md`.
