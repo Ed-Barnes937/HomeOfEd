@@ -5,7 +5,7 @@ import type { Params } from '../engine/schema.ts'
 import { BOTTLES, drawnHeightMm, type ShapeId } from './bottles.ts'
 import type { PotionSpec } from './compile.ts'
 
-/** The tallest bottle at its longest neck, foot to stopper top. */
+/** The tallest bottle at its longest neck, foot to the top of its stopper allowance. */
 export const TALLEST_MM = Math.max(
   ...(Object.keys(BOTTLES) as ShapeId[]).map((shape) => drawnHeightMm({ shape, neck: 1 })),
 )

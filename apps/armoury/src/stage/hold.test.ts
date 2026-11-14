@@ -3,11 +3,16 @@ import { describe, expect, test } from 'vitest'
 import {
   dragUpright,
   heldTilt,
+  LEAN_MARGIN,
   LEAN_MAX,
+  leanFit,
+  leanShiftMm,
   rightUpright,
   TIP_MAX,
+  sweptWidthMm,
   UPRIGHT_PER_PX,
   uprightFlourishWeight,
+  type Outline,
   type UprightPose,
 } from './hold.ts'
 
@@ -176,5 +181,62 @@ describe('how strongly a flourish holds the item upright', () => {
       expect(uprightFlourishWeight(t, SECONDS, true)).toBe(1)
     for (const t of [-1, -0.01, SECONDS, SECONDS + 0.01, Infinity, NaN])
       expect(uprightFlourishWeight(t, SECONDS, true)).toBe(0)
+  })
+})
+
+describe('an upright item leaned on a portrait screen', () => {
+  // A wide body under a slim neck, as a round flask stands: the wide part sits below the middle.
+  const flask: Outline = [
+    [10, 0],
+    [45, 40],
+    [10, 90],
+    [8, 130],
+    [-8, 130],
+    [-10, 90],
+    [-45, 40],
+    [-10, 0],
+  ]
+  const pivot = 65
+
+  /** Where the leaned outline reaches across, mm from the axis, once shifted by `leanShiftMm`. */
+  const shifted = (lean: number) => {
+    const c = Math.cos(lean)
+    const s = Math.sin(lean)
+    const shift = leanShiftMm(flask, pivot, lean)
+    const across = flask.map(([x, y]) => x * c + (y - pivot) * s + shift)
+    return { min: Math.min(...across), max: Math.max(...across) }
+  }
+
+  test('the swept width is the widest it spans at any lean up to the limit, either way', () => {
+    const swept = sweptWidthMm(flask, pivot)
+    for (let deg = -60; deg <= 60; deg += 5) {
+      const { min, max } = shifted(deg * DEGREE)
+      expect(max - min).toBeLessThanOrEqual(swept + 1e-9)
+    }
+    const atLimit = shifted(LEAN_MAX)
+    expect(atLimit.max - atLimit.min).toBeCloseTo(swept, 1)
+    expect(swept).toBeGreaterThan(90)
+  })
+
+  test('shifted, it stays centred where its axis stood at every lean, and is not moved upright', () => {
+    expect(leanShiftMm(flask, pivot, 0)).toBe(0)
+    for (const deg of [-60, -35, -10, 10, 35, 60]) {
+      const { min, max } = shifted(deg * DEGREE)
+      expect((min + max) / 2).toBeCloseTo(0, 9)
+    }
+    // Leaned right, the wide body swings left of the pivot, so it is moved right.
+    expect(leanShiftMm(flask, pivot, 35 * DEGREE)).toBeGreaterThan(0)
+    expect(leanShiftMm(flask, pivot, -35 * DEGREE)).toBeCloseTo(
+      -leanShiftMm(flask, pivot, 35 * DEGREE),
+      9,
+    )
+  })
+
+  test('fitted, it leaves the margin each side of the screen at the limit', () => {
+    const swept = sweptWidthMm(flask, pivot)
+    for (const width of [360, 390, 430]) {
+      const k = leanFit(swept, width)
+      expect(swept * k).toBeCloseTo(width * (1 - 2 * LEAN_MARGIN), 9)
+    }
   })
 })

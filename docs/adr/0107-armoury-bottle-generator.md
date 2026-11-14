@@ -39,7 +39,7 @@ light half must be safe for the main chunk.
   5 degrees of turn or 4 mm of run; volumes and radii use the dense curve.
 - **Equal pours to `fullAt`.** `fullZ = fullAt * bodyHeightMm`, just under the shoulder.
   `uprightLevels` puts band k's top where the cavity holds k quarters of the volume to
-  `fullZ`, so every pour adds the same volume (tests: within 1 percent against Simpson's
+  `fullZ`, so every pour adds the same volume (tests: within 1e-5 against Simpson's
   rule). Fewer pours are the first levels of four.
 - **The cavity runs up the bore to the bottom of the stopper** (18 mm below the lip top,
   the same for every stopper, or 2 mm above the shoulder on a neck too short for that, so no
@@ -51,7 +51,7 @@ light half must be safe for the main chunk.
   bisection on the cavity's volume below a tilted plane, integrated in 0.25 mm slices with
   the exact disc-segment area. By symmetry the tilt's direction does not matter. `levelsAt`
   interpolates linearly. Measured against independent quadrature, every band of every
-  shape keeps its volume within 2 percent to 60 degrees, including between rows, and within
+  shape keeps its volume within 0.4 percent to 60 degrees, including between rows, and within
   5 percent at 90. A table costs several milliseconds; build it once per spec, never per
   frame.
 - **The frame of a tipped level.** A level h is the plane dot(p, u) = h, where p is a point
@@ -61,13 +61,11 @@ light half must be safe for the main chunk.
   bottle's axis; tipped, a shader must use dot(p, u), not `aHeight`.
 - **Stoppers.** Each is a lathe that fills the bore to the cavity's top, 0.05 mm inside it:
   `cork` a tapered plug 60 percent in the bore, chamfered; `glass` a ground plug, a collar
-  on the lip, a stem and a teardrop knob that reaches `heightMm`; `wax` a cork 4 mm above
-  the lip, dipped: the wax hugs the cork, the lip and the neck inside; outside it is a soft
-  superellipse dome from the bead over the cork, a thinner coat down the neck and a roll
-  where the dip ended. The mesh lifts the lathe unevenly (the dome tilts, the roll wanders
-  about a millimetre up and down round the neck), with normals carried through the lift
-  exactly, and six flattened drips of different lengths, fatter at the foot, hang from
-  inside the roll (shortened together on a short neck, and kept clear of a tag's string).
+  on the lip, a stem and a teardrop knob that reaches `heightMm`; `wax` a cork dipped in
+  wax (its shape since the form gate is under "Form gate, round 2" below: a thin coat over
+  the lip and a nearly flush cork, a low domed top, a coat down the neck to a wavy hem and
+  runs of different lengths). The mesh lifts the wax's lathe unevenly, with normals carried
+  through the lift exactly.
   `heightMm` is the top of the 16 mm stopper allowance: the glass knob reaches it, the cork
   and the wax stop below it. It is the same for every stopper, so a bottle is framed the
   same whatever its stopper.
@@ -98,6 +96,75 @@ light half must be safe for the main chunk.
   `sword/curve.ts`, `bottles.ts`, `compile.ts` and `potionSchema.ts` (a test pins it).
   `geometry.ts` and `tipped.ts` are for the stage's lazy chunk only.
 
+## Form gate
+
+The bottle is judged in plain grey (`?clay`) on the real stage rigs (ticket 09), beside the wand
+and sword baseline, before any material exists. Shots and each round's review are in the epic's
+`shots/09/r<N>/`.
+
+- **Two corrections to the text above.** The cork sits 60 percent in the bore on most necks and
+  54 percent on short ones; the wax is about 1.0 mm thick at the lip's corner, not 1.1.
+- **The wax seal had a flat top** for round 1. The wax rose straight from the bead to a flat top
+  just over the cork, with a 1.75 mm rounded edge, in place of an earlier tall rounded cap over
+  a narrower collar that read as a mushroom; the top tilted and the dipped edge wandered. Round
+  1 read it as a screw cap; round 2 below replaced it.
+- **The round label is 32 percent of the body's height across** (was 40), so on the teardrop and
+  the gourd, where it sits low on the widest band, the lower pours show beside it.
+- Cuts: none so far.
+
+### Form gate, round 2
+
+Round 1's review (`shots/09/r1/review.md`) passed the shapes, necks, cork, glass stopper and pours
+and asked for changes to the bottle's dressing. In ring diameters D (the lip ring's outer
+diameter, 18 to 22 mm):
+
+- **The wax seal is a cork dipped in wax, not a cap.** The cork sits 0.8 mm above the lip (was
+  4). Outside, the wax stands 0.05 D beyond the lip ring at its side and sags: 0.45 mm over the
+  ring's top, so the bead and the cork's edge show through, then up over the cork and domed
+  0.8 mm across the whole ring, 0.12 to 0.15 D above the lip in all. Below the bead it flares
+  down into the neck like a bell (leaving the bead's round 20 degrees below its middle, over up
+  to 7 mm) instead of standing as a straight-sided puck, and the coat thins from 0.65 mm to a
+  0.3 mm rounded hem (the roll is gone). The coat runs 0.65 D down a long neck and at most 55
+  percent of the room a short one has (at least 2 lips plus 7 mm, and never within 2.5 mm of
+  the floor). The hem wanders up and down by up to 0.14 D in four lobes of uneven size, phased
+  so the front is wavy; the top tilts by about 0.35 mm and has three low lumps (0.12 mm at the
+  cork's edge). Four runs (was six even drips) leave the hem at -0.55, 0.3, 1.75 and 3.6 rad from
+  the front, 0.6, 1.0, 0.3 and 0.42 D long: each a flattened lathe lying on the neck, 0.1 D wide
+  at the hem, narrowing to 0.06 D and ending in a 0.08 D bead. Nothing of the wax reaches below
+  1 mm above the shoulder, or 1.5 mm above a tag's loop; on a short neck the runs shorten
+  together, by one scale, so they keep their different lengths. "Dome" no longer names the old
+  superellipse cap anywhere.
+- **The banner wraps 120 degrees** (was 140) and is 18 mm high (was 22), so both notched ends sit
+  inside the front silhouette and more of the pours shows above and below.
+- **The tag hangs like a luggage tag.** Its top hangs 0.66 to 0.71 neck diameters below the
+  string's loop (0.75 by the hole, which is 3 mm below the top), resting on the shoulder or the
+  upper bulb (the hang search starts 0.5 mm off the glass); it is rolled 10 degrees in its own
+  plane and its top corners are clipped 4 mm at 45 degrees. The string is 0.4 mm in radius (was
+  0.5), leaves the loop 0.6 rad either side of the front, follows a clearance envelope 1.2 mm off
+  the glass pulled taut (it bridges hollows such as a neck's join), and passes through the hole
+  in a round U of 2 mm radius, with no V; it is smoothed, and no bend turns more than 20 degrees
+  per 0.3 mm. It is still one closed tube clear of the glass.
+- **The round label is at most 0.6 of the body's width from the front** as well as 32 percent of
+  its height across, so the tall bottle's comes down from about 0.8 to 0.6 and the others stay
+  where round 1 passed them (teardrop 0.51, square shoulders 0.58, gourd 0.57). The round
+  flask's stays at 0.3: 0.6 would hide its middle three pours, on the shape every pour shot uses.
+  **Paper is 0.1 mm thick, 0.1 mm off the glass** (was 0.12 mm thick, 0.3 off), so it reads as
+  paper stuck on glass edge-on; the glass writes no depth, and the label's grid lies inside its
+  true surface by at most 0.02 mm, so it cannot fight.
+- **The cavity floor rounds into the wall with a 4 mm radius** (1.6 walls), the liquid's with
+  3.7 mm about the same centre, on every shape. Volumes still come from the cavity's own curve, so
+  pours stay equal to within 1.2 millionths against Simpson's rule (tests: 1e-5), and the tipped
+  bands within 0.35 percent to 60 degrees (tests: 0.4 percent).
+- **The cavity's inset drops any step more than 60 degrees off the curve's tangent at either
+  end** (it dropped only steps running backwards along the source), so the square shoulders'
+  inner wall no longer folds a lathe ring at necks 0.625 to 0.67. Only that shape moves: its
+  inner wall by at most 0.01 mm and its liquid by 0.05 mm; every outer silhouette is unchanged.
+- **Budgets after round 2**, across all 1,260 combinations: glass 13.6k (gourd, neck 1, cork, no
+  label), liquid 5.2k (gourd, neck 0.9), stopper and label 7.5k (round, neck 0.9, wax, tag),
+  total 25.0k (gourd, neck 1, wax, tag).
+- Left for the owner or later tickets: the glass stopper's finial, a tighter square shoulder, the
+  bottle's size in the scene, and the liquid surface's aliased far rim (ticket 10).
+
 ## Consequences
 
 - Tuning a shape is a row edit; the tests derive their expectations from the rows and pin
@@ -108,3 +175,9 @@ light half must be safe for the main chunk.
   seat and clearance tests cover it.
 - The form gate (ticket 09) judges the shapes in plain grey on a real GPU and adds its
   tuning and cuts here as a "Form gate" section.
+
+## The stage's level seam
+
+- **`levels` defaults to the levels at the surface's tilt**, `levelsAt(table, tilt(u))`, not the
+  upright levels the ticket named. Upright they are the same; tipped, the bands keep their volume
+  with nothing passed, so a slosh only moves `surfaceNormal`.

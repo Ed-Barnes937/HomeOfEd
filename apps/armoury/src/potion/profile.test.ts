@@ -7,7 +7,15 @@ import { TALLEST_MM } from './framing.ts'
 import type { IngredientId } from './ingredients.ts'
 import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
-import { BASE_MM, bottleProfile, type BottleProfile, uprightLevels, WALL_MM } from './profile.ts'
+import {
+  BASE_MM,
+  bottleProfile,
+  type BottleProfile,
+  FLOOR_FILLET_MM,
+  LIQUID_GAP_MM,
+  uprightLevels,
+  WALL_MM,
+} from './profile.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
 const FOUR: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal', 'bluebell']
@@ -95,7 +103,7 @@ describe('bottleProfile', () => {
   it.each(CATALOGUE)('$name: the wall is the wall thick along its normal', ({ profile }) => {
     const outer = steps(0, profile.lipZ - 5, 0.05).map((z) => ({ r: profile.outerR(z), z }))
     const inner = profile.glass.filter(
-      (p) => p.z > BASE_MM + 3 && p.z < profile.shoulderZ - 3 && p.nr < 0,
+      (p) => p.z > BASE_MM + FLOOR_FILLET_MM && p.z < profile.shoulderZ - 3 && p.nr < 0,
     )
     for (const p of inner) {
       const d = distanceToPolyline(p, outer)
@@ -103,6 +111,32 @@ describe('bottleProfile', () => {
       expect(d).toBeLessThan(WALL_MM + 0.1)
     }
   })
+
+  it.each(CATALOGUE)(
+    '$name: the cavity floor rounds into the wall, and the liquid follows it',
+    ({ profile }) => {
+      expect(FLOOR_FILLET_MM / WALL_MM).toBeGreaterThanOrEqual(1.5)
+      expect(FLOOR_FILLET_MM / WALL_MM).toBeLessThanOrEqual(2)
+      const centre = { r: profile.innerR(BASE_MM), z: BASE_MM + FLOOR_FILLET_MM }
+      const off = (p: { r: number; z: number }) => Math.hypot(p.r - centre.r, p.z - centre.z)
+      // The inside of the glass from low on the wall, round the corner, onto the floor.
+      const inside = profile.glass.filter(
+        (p) => p.nr <= 0 && p.z >= BASE_MM && p.z <= centre.z && p.r >= centre.r - 1e-9,
+      )
+      for (let i = 1; i < inside.length; i++) {
+        const [a, b] = [inside[i - 1]!, inside[i]!]
+        expect(Math.acos(Math.min(1, a.nr * b.nr + a.nz * b.nz))).toBeLessThan((10 * Math.PI) / 180)
+      }
+      for (const p of inside) expect(off(p)).toBeGreaterThan(FLOOR_FILLET_MM - 0.01)
+      expect(inside.filter((p) => off(p) < FLOOR_FILLET_MM + 0.01).length).toBeGreaterThan(5)
+      const wet = profile.liquid.filter(
+        (p) => p.z > BASE_MM + LIQUID_GAP_MM + 1e-6 && p.z < centre.z && p.r > centre.r,
+      )
+      const round = FLOOR_FILLET_MM - LIQUID_GAP_MM
+      for (const p of wet) expect(off(p)).toBeGreaterThan(round - 0.01)
+      expect(wet.filter((p) => off(p) < round + 0.01).length).toBeGreaterThan(5)
+    },
+  )
 
   it.each(CATALOGUE)(
     '$name: body ends at the neck; full is under it; the seat is the lip',
@@ -186,11 +220,12 @@ function crossings(curve: Curve2): number {
 
 describe('the stoppers', () => {
   const WAXED = SHAPES.flatMap((shape) =>
-    [0, 1].map((neck) => {
+    [0, 0.5, 1].map((neck) => {
       const spec = compilePotion(
         normalise(potionSchema, { ...withPours(FOUR), shape, neck, stopper: 'wax' }),
       )
-      return { name: `${shape} neck ${neck}`, profile: bottleProfile(spec) }
+      const ring = 2 * (BOTTLES[shape].neckRadiusMm + BOTTLES[shape].lipMm)
+      return { name: `${shape} neck ${neck}`, profile: bottleProfile(spec), ring }
     }),
   )
 
@@ -216,31 +251,51 @@ describe('the stoppers', () => {
     }
   })
 
-  it.each(WAXED)('$name: the wax domes over the cork, with no flat top', ({ profile }) => {
-    const wax = profile.stopper[1]!
-    const top = Math.max(...wax.map((p) => p.z))
-    const coat = widestAt(wax, profile.lipZ + 4)
-    const turned = wax.map((p) => ({ r: p.z, z: p.r }))
-    expect(top - widestAt(turned, 0.8 * coat)).toBeGreaterThan(0.6)
-  })
+  it.each(WAXED)(
+    '$name: the wax hugs the lip ring and stands low over the cork, its top domed',
+    ({ profile, ring }) => {
+      const cork = profile.stopper[0]!
+      const wax = profile.stopper[1]!
+      const beyond = Math.max(...wax.map((p) => p.r)) - ring / 2
+      expect(beyond / ring).toBeGreaterThanOrEqual(0.04)
+      expect(beyond / ring).toBeLessThanOrEqual(0.06)
+      const top = Math.max(...wax.map((p) => p.z))
+      expect((top - profile.lipZ) / ring).toBeGreaterThanOrEqual(0.11)
+      expect((top - profile.lipZ) / ring).toBeLessThanOrEqual(0.2)
+      const corkTop = Math.max(...cork.map((p) => p.z))
+      expect(corkTop - profile.lipZ).toBeLessThanOrEqual(2)
+      const turned = wax.map((p) => ({ r: p.z, z: p.r }))
+      const corkR = profile.stopperSeat.r
+      const dome = top - widestAt(turned, 0.8 * corkR)
+      expect(dome).toBeGreaterThan(0.3)
+      expect(dome).toBeLessThan(1)
+    },
+  )
 
   it.each(WAXED)(
-    '$name: the dipped edge is a roll thicker than the wax above it',
-    ({ profile }) => {
+    '$name: the coat runs down the neck, thinning to a hem no thicker than the coat',
+    ({ profile, ring }) => {
       const wax = profile.stopper[1]!
-      const below = wax.filter((p) => p.z < profile.neckTopZ)
-      const roll = Math.max(...below.map((p) => p.r))
-      const rollZ = below.find((p) => p.r === roll)!.z
-      const above = []
-      for (let z = rollZ + 0.5; z < profile.neckTopZ; z += 0.1) above.push(widestAt(wax, z))
-      expect(roll - Math.min(...above)).toBeGreaterThan(0.8)
+      const { hemZ } = profile.wax!
+      const coat = widestAt(wax, hemZ + 0.5) - profile.neckR
+      expect(coat).toBeGreaterThan(0.3)
+      expect(coat).toBeLessThan(0.6)
+      expect(widestAt(wax, profile.neckTopZ - 1.5) - profile.neckR).toBeGreaterThan(coat)
+      const lowest = Math.min(...wax.map((p) => p.z))
+      for (const p of wax.filter((q) => q.z < hemZ))
+        expect(p.r).toBeLessThanOrEqual(profile.neckR + coat + 1e-9)
+      expect(lowest).toBeGreaterThan(profile.shoulderZ)
+      if (profile.lipZ - profile.shoulderZ > 1.6 * ring) {
+        expect((profile.lipZ - hemZ) / ring).toBeGreaterThanOrEqual(0.6)
+        expect((profile.lipZ - hemZ) / ring).toBeLessThanOrEqual(1)
+      }
     },
   )
 })
 
 describe('uprightLevels', () => {
   it.each(CATALOGUE)(
-    '$name: each pour adds a quarter of the volume to fullZ, within 1 percent',
+    '$name: each pour adds a quarter of the volume to fullZ, within a hundred-thousandth',
     ({ spec, profile }) => {
       const levels = uprightLevels(spec)
       expect(levels).toHaveLength(4)
@@ -250,7 +305,7 @@ describe('uprightLevels', () => {
       for (const top of levels) {
         expect(top).toBeGreaterThan(below)
         const band = simpsonVolume(profile, below, top)
-        expect(Math.abs(band / (full / 4) - 1)).toBeLessThan(0.01)
+        expect(Math.abs(band / (full / 4) - 1)).toBeLessThan(1e-5)
         below = top
       }
     },

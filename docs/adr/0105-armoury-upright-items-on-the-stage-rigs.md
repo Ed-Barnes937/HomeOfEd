@@ -26,7 +26,11 @@ own (the uncorking), not a wave.
 - `boxCentreY`, how far above the box camera's look-at point the box stage stood the item's
   centre (default 0, on it, as the wand and the sword lie);
 - `widthMm`, the widest across, so an upright item is fitted to the screen by its height and its
-  width.
+  width;
+- `outline`, an upright item's outline from the front (mm, x across, y up from its foot), which
+  sizes and centres it as it leans on a portrait screen (below);
+- `hit` may be `{ radius, height }`, a cylinder standing along y, for a round upright item, in
+  place of a box.
 
 `boxRig` gains `Framing({ view = 'above' })`, `Roller({ axis = 'x' })` and `boxCameraPosition`,
 the one place the box camera's position is worked out, which `Framing` and the rig's lift both
@@ -54,6 +58,21 @@ its default.
   acted-out behaviour the spec rules out, and a flicked lean would fight the spring.
 - Tip and lean turn the item about its grip point, as the wave does, and the invisible hit box is
   a child of the held group, so it follows the pose. Pinch and wheel zoom as before.
+- **The hit of a round item is a cylinder.** A square box the bottle's width turns with the idle
+  roll, and seen corner-on it is 1.4 times as wide: on a phone the round flask's (76 percent of
+  the width upright, plus the 1.1 margin) then covered the whole screen at the bottle's middle
+  height, so a tap beside the bottle landed on it and never put it back (the form gate's round 1).
+  The "Put it back" button always worked, so a child was never stuck. A cylinder is the same width
+  at every roll.
+- **Leaning on a portrait screen.** `uprightScale` sizes an upright item by its height and width as
+  before and, on a portrait screen with an `outline`, no larger than `leanFit`: the outline's widest
+  span across the screen at any lean up to the limit either way (`sweptWidthMm`, sampled every
+  degree) fills the width less `LEAN_MARGIN` (4 percent) each side. As it leans, `leanShiftMm`
+  moves it across so its leaned outline stays centred where its axis stood; upright it does not
+  move. The bottles held on a phone are about 0.8 to 0.84 of their old size (the short round
+  flask is unchanged: its swept outline already fit), and at the limit each spans 92 percent of
+  the width, centred. 60 degrees stays. Landscape screens and the desk are as before, and so are
+  the wand's and the sword's paths (they give no outline).
 
 ### The item's own flourish (`flourish: 'own'`)
 
@@ -82,9 +101,12 @@ nothing unless a finger is holding a lean.
      same mesh, unchanged, goes in the box stage and in the held group; the mesh never places
      itself on a base line.
   2. The box stage draws it as `Roller axis="y"` > `group scale={boxScale}` >
-     `group position={[0, boxCentreY, 0]}` > the mesh, with no other turn. `boxCentreY` is in
+     `group position={[0, boxCentreY, 0]}` > the mesh, with no other turn. The potion has no scale
+     group: its bottles are drawn true to one another, so its box scale is 1. `boxCentreY` is in
      the units inside the box's scale (the item's own scene units), the height that puts the foot
-     on the stage's base line.
+     on the stage's base line. `boxCentreY` is worked out for one aspect, so such a box stage
+     keeps a fixed aspect (the potion's slot is square); at any other aspect the foot would leave
+     the base line.
   3. Its `HeldItem` sets `boxHalfWidth` to the stage's half width divided by the box's scale (as
      the sword does) and `boxCentreY` to the same number the box stage used.
   4. The rig does the rest. It lays upright children along x in an inner group turned by
@@ -105,7 +127,11 @@ nothing unless a finger is holding a lean.
   the look-at point; and the upright children start turned as the box stood them and are held
   standing up and facing the viewer, in landscape and portrait.
 - The lights group is turned by the pitch (not `BOX_TO_CLOSE`) as the item rises, matching the
-  box at the start.
+  box at the start. The rig hands it to its children as `up` (`children(flourishAt, up)`): its +y
+  is up for the item, the box's as it rises and the screen's once held, whatever lights are
+  mounted in it. The potion's liquid keeps level by it: `PotionMesh` reads `surfaceNormal` as a
+  direction in its `upFrom` frame (by default the scene, +y), composed with the bottle's own turn
+  as the liquid is drawn, after the rig has posed it.
 
 ### Proof the wand and the sword are unchanged
 
@@ -129,7 +155,11 @@ tell run-to-run differences from changes.
   same code is 0 against the before shots.
 
 The numbers are in the epic's `shots/04/diff.md`; the after shots are the baseline every later
-potion gate shoots beside. Every existing wand and sword test passes untouched.
+potion gate shoots beside. Ticket 09's fix round (the hit, `outline`, `uprightScale`, `up`, and
+the sword's rebuild scheduler and buffer refill moved unchanged to `stage/meshBuffers.ts`) was
+proved the same way in `shots/09/rig-diff-r2/`: 100 of 108 pairs at 0, every sword frame at 0, and
+the eight others the known wand noise (the six close frames at 1200 ms, and two desk frames at
+2400 ms at most 3 levels in the page behind). Every existing wand and sword test passes untouched.
 
 **What the pixel proof does not cover.** Every shot is taken under reduced motion, so the rise
 (the turn and the lights easing from the box), the idle roll and the figure of 8 are never drawn;

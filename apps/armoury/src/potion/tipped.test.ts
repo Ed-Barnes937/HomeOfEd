@@ -35,7 +35,7 @@ const CATALOGUE = SHAPES.flatMap((shape) =>
 function bandVolume(profile: BottleProfile, t: number, lo: number, hi: number): number {
   const s = Math.sin(t)
   const c = Math.cos(t)
-  const dz = 0.2
+  const dz = 0.02
   const n = 32
   let v = 0
   for (let z = BASE_MM + dz / 2; z < profile.cavityTopZ; z += dz) {
@@ -82,13 +82,13 @@ describe('levelTable', () => {
   it.each(CATALOGUE)('$name: every band keeps its volume as it tips', ({ profile, table }) => {
     const quarter = profile.cavityVolume(profile.fullZ) / 4
     for (const [deg, bound] of [
-      [0, 0.02],
-      [15, 0.02],
-      [30, 0.02],
-      [37, 0.02],
-      [45, 0.02],
-      [52, 0.02],
-      [60, 0.02],
+      [0, 0.004],
+      [15, 0.004],
+      [30, 0.004],
+      [37, 0.004],
+      [45, 0.004],
+      [52, 0.004],
+      [60, 0.004],
       [75, 0.05],
       [90, 0.05],
     ] as const) {

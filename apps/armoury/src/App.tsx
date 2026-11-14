@@ -21,6 +21,12 @@ const realStages: StagesByKind = {
       import('./stage/SwordStage.tsx').then((m) => ({ default: m.SwordCloseUpStage })),
     ),
   },
+  potion: {
+    Box: lazy(() => import('./stage/PotionStage.tsx')),
+    CloseUp: lazy(() =>
+      import('./stage/PotionStage.tsx').then((m) => ({ default: m.PotionCloseUpStage })),
+    ),
+  },
 }
 
 // Read before the router mounts, as the root's redirect drops the fragment. The last shop is a
