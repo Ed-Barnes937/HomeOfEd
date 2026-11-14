@@ -176,7 +176,7 @@ const revealMs = MIX_REVEAL_SECONDS * 1000
 
 async function stopTheClock(page: Page): Promise<void> {
   await page.clock.install()
-  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1)
+  await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000)
 }
 
 test('the tap that lifts the bottle mixes it once the reveal has played, and a reload keeps it', async ({

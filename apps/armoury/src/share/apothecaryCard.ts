@@ -1,7 +1,7 @@
 import { bottleOnTable, BOARD_SLOT, CANDLE, FOOT, roomSvg } from '../apothecary/tableArt.ts'
 import type { Params } from '../engine/schema.ts'
-import { secretBlend } from '../potion/blends.ts'
 import { compilePotion } from '../potion/compile.ts'
+import { isGold } from '../potion/describe.ts'
 import { BASE_LINE, PICTURE_GROUND, SLOT_MM } from '../potion/framing.ts'
 import { CARD_HEIGHT, CARD_WIDTH, type CardContent, type TagColours } from './shareCard.ts'
 
@@ -58,9 +58,8 @@ const GILT: TagColours = {
   edge: '#b8892c',
 }
 
-/** The recipe card's colours: cream, or gilt for a secret blend. */
-export const recipeTag = (params: Params): TagColours =>
-  secretBlend(params) !== null ? GILT : CREAM
+/** The recipe card's colours: cream, or gilt for a mixed secret blend. */
+export const recipeTag = (params: Params): TagColours => (isGold(params) ? GILT : CREAM)
 
 const preload = (svg: () => string) => {
   if (typeof Image === 'undefined') return null

@@ -37,14 +37,20 @@ describe('liftFromGround', () => {
 })
 
 describe('recipeTag', () => {
-  const potion = (pour1: string, pour2: string) =>
-    normalise(potionSchema, { pour1, pour2, pour3: 'none', pour4: 'none' })
+  const potion = (pours: string[], mixed: 'yes' | 'no') =>
+    normalise(potionSchema, { pour1: pours[0], pour2: pours[1], pour3: pours[2], mixed })
 
-  it('is cream paper for a potion and gilt for a secret blend', () => {
-    const plain = recipeTag(potion('moonmilk', 'frogfizz'))
-    const gold = recipeTag(potion('thundercloud', 'moonmilk'))
+  it('is cream paper for a potion and gilt for a mixed secret blend', () => {
+    const plain = recipeTag(potion(['moonmilk', 'frogfizz', 'rosehip'], 'yes'))
+    const gold = recipeTag(potion(['thundercloud', 'thundercloud', 'moonmilk'], 'yes'))
     expect(plain.edge).toBeUndefined()
     expect(gold.edge).toBeDefined()
     expect(gold.name).not.toBe(plain.name)
+  })
+
+  it('stays cream until the secret blend is mixed', () => {
+    expect(
+      recipeTag(potion(['thundercloud', 'thundercloud', 'moonmilk'], 'no')).edge,
+    ).toBeUndefined()
   })
 })
