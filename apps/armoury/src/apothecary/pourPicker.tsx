@@ -75,11 +75,6 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
 
   return (
     <div className={styles.picker}>
-      {shutReason !== null && (
-        <p className={styles.reason} id={reasonId}>
-          {shutReason}
-        </p>
-      )}
       <div className={styles.jars}>
         {INGREDIENTS.map((item, i) => (
           <button
@@ -97,6 +92,11 @@ export function PourPicker({ params, onChange }: { params: Params; onChange: OnC
           </button>
         ))}
       </div>
+      {shutReason !== null && (
+        <p className={styles.reason} id={reasonId}>
+          {shutReason}
+        </p>
+      )}
 
       <h3 className={styles.heading} id={headingId}>
         {mixed ? 'Mixed in the bottle' : 'In the bottle'}

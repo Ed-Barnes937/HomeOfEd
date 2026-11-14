@@ -66,11 +66,26 @@ Pictures are 256 px, each about 3 KB for the placeholders and under 30 KB by the
 cutter's check. They are only requested by the potion shop's picker, so a wand or
 sword visit downloads none.
 
-On desk a picture is 64 px. On a phone it is 26 px, not the 56 px first asked:
-the picker's settled rule is that all nine jars stay in view at 390 x 844 with no scrolling,
-and that sheet has no slack, so the three rows of jars cannot grow. Raising the phone
-size needs the jars to scroll or the sheet to gain height; recorded as a question for
-the owner.
+On desk a picture is 64 px. On a phone it is 48 px, not the 56 px first asked: 56 px needs
+about 90 px more height than the sheet has. 48 px keeps all nine jars in view at 390 x 844
+by the layout below (review 16-r1, ruling 3a).
+
+### The phone layout
+
+The sheet's summary row ("Three" and the lock) cost 42 px above the jars and the full or
+mixed message 22 px. On the Pours tab of the phone sheet:
+
+- The lock moves into the tab row, at its right end, so it stays on screen and a tap away.
+  `GroupMeta.lockInTabRow` is the per-group switch; it is off by default, so the wand and
+  sword groups and the potion's other tabs keep their summary row.
+- The summary is not drawn but stays in the tab panel as visually hidden text, so a screen
+  reader still reads it.
+- The reason the jars are shut sits below the jars instead of above them (desk keeps it above,
+  by CSS `order`). It is out of view at 390 x 844 until the sheet scrolls; the jars are still
+  `aria-disabled` and described by it, and the stage line still says "Tap the bottle to mix it".
+- Rows are the 48 px picture, the label, and a 4 px gap between jars: 71 px each, equal.
+
+At 375 x 667 the body is 157 px tall, so two rows show and the third needs a scroll of about 72 px.
 
 ### Placeholders
 

@@ -37,6 +37,8 @@ export interface GroupMeta {
   /** The short phone tab label. */
   tab: string
   summary: (p: Params) => string
+  /** On the phone sheet, the lock rides the tab row and the summary is read but not drawn. */
+  lockInTabRow?: boolean
 }
 
 export interface SceneProps {

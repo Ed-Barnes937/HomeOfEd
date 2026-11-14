@@ -5,6 +5,7 @@
 }
 
 .reason {
+  order: -1;
   margin: 0;
   font-size: 15px;
   color: var(--ink);
@@ -115,10 +116,14 @@
   min-height: 44px;
 }
 
-// The sheet is short, so the jars tighten until all nine stay in view.
+// The sheet is short, so the jars tighten until all nine stay in view, and the reason waits below them.
 @media (max-width: 899px) {
   .picker {
     gap: 6px;
+  }
+
+  .jars {
+    gap: 4px;
   }
 
   .jar {
@@ -128,6 +133,8 @@
   }
 
   .reason {
+    order: 0;
+    margin-top: 6px;
     font-size: 14px;
     line-height: 1.15;
   }
@@ -138,7 +145,7 @@
   }
 
   .picture {
-    width: 26px;
-    height: 26px;
+    width: 48px;
+    height: 48px;
   }
 }

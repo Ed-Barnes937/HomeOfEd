@@ -17,7 +17,7 @@ const COUNT_WORDS = ['Empty', 'One', 'Two', 'Three']
 const pours = (p: Params) => (isMixed(p) ? 'Mixed' : COUNT_WORDS[pourList(p).length]!)
 
 const GROUP_DEFS: readonly Omit<GroupMeta, 'numeral'>[] = [
-  { key: 'pours', title: 'What goes in', tab: 'Pours', summary: pours },
+  { key: 'pours', title: 'What goes in', tab: 'Pours', summary: pours, lockInTabRow: true },
   { key: 'bottle', title: 'The bottle', tab: 'Bottle', summary: (p) => labelOf('shape', p) },
   {
     key: 'finish',
