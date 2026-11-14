@@ -645,7 +645,7 @@ Files that pass from one ticket to a later one (never held by two at once):
 | `src/stage/potionShow.ts` | 23 -> 15 (adds the effect's `emit` and `age` only) |
 | `src/stage/effectKinds.ts`, `EffectShow.tsx` | 15 |
 | `scripts/gpu-shots.mjs` | 09 -> 10 (`--freeze`) -> 14 (`--settle`, potion flourishes) -> 12 (`--pour`) -> 18 (header) |
-| `scripts/ingredient-pictures.mjs`, `public/ingredients/*` | 16 -> 25 (re-run on Ed's sheet) |
+| `scripts/ingredient-pictures.ts`, `public/ingredients/*` | 16 -> 25 (re-run on Ed's sheet) |
 | `README.md` (credits) | 10 -> 18 |
 
 ## ADRs

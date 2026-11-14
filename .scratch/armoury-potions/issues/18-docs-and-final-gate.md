@@ -36,7 +36,7 @@ through the final gate, and list for Ed what only he can judge.
 
 1. **`apps/armoury/CLAUDE.md`**: three shops in the opening paragraph; the layout gains
    `potion/`, `apothecary/` and the potion stage files with one line each; commands unchanged
-   unless a ticket added one (`scripts/ingredient-pictures.mjs` and the placeholder sheet); "Adding a shop" updated only with
+   unless a ticket added one (`scripts/ingredient-pictures.ts` and the placeholder sheet); "Adding a shop" updated only with
    what this epic proved general (`flourishOnArrival`, `closeUp.reveal`, `offersPutBack`, the
    upright hold and front framing, the sprite-sheet cutter); a short "The potion" rules section in the style of "The sword" (pure
    three-free generator, lathe data rows, ingredient ids are permanent, three ingredients and the

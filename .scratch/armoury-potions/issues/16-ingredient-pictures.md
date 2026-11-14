@@ -1,6 +1,6 @@
 # 16 - Ingredient pictures: the sheet layout, the cutter, placeholders and the picker
 
-**Status:** ready-for-agent
+**Status:** done (merged into `armoury-potions` as 3f545fcc; reviews 16-r1, 16-r2; the last small fix 3f5d5b7e read by the orchestrator, no third reviewer)
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 22
