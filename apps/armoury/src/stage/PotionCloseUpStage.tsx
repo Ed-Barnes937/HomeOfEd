@@ -1,4 +1,6 @@
-import { Suspense, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { Suspense, useMemo, useRef, useState, type RefObject } from 'react'
+import * as THREE from 'three'
 
 import { compilePotion, type PotionSpec } from '../potion/compile.ts'
 import { isGold, potionGlowColour, potionName } from '../potion/describe.ts'
@@ -19,6 +21,7 @@ import {
 } from './potionScene.tsx'
 import { PotionPoseProbe } from './PotionPoseProbe.tsx'
 import { MM } from './scene.tsx'
+import { restingSlosh, sloshNormal, spinBetween, stepSlosh } from './slosh.ts'
 import type { CloseUpProps } from './stage.ts'
 
 /** A tap round a slim neck should still land. */
@@ -47,7 +50,50 @@ export function potionHeldItem(spec: PotionSpec): HeldItem {
   }
 }
 
-/** The close look: the bottle rises from the table, stands up, leans and tips under a finger and rights itself. */
+/** Steps the liquid's slosh once a frame from how fast the bottle turns against `up`, writing the surface's normal into `normal`. */
+function Sloshing({
+  up,
+  normal,
+  reducedMotion,
+}: {
+  up: RefObject<THREE.Object3D | null>
+  normal: THREE.Vector3
+  reducedMotion: boolean
+}) {
+  const mark = useRef<THREE.Group>(null)
+  const s = useMemo(
+    () => ({
+      slosh: restingSlosh(),
+      seen: false,
+      before: new THREE.Quaternion(),
+      now: new THREE.Quaternion(),
+      frame: new THREE.Quaternion(),
+      at: new THREE.Vector3(),
+      scale: new THREE.Vector3(),
+      spin: new THREE.Vector3(),
+    }),
+    [],
+  )
+  useFrame((_, delta) => {
+    const bottle = mark.current
+    const from = up.current
+    if (!bottle || !from) return
+    const dt = Math.min(delta, 0.05)
+    // As last drawn: the bottle's turn seen from the up frame.
+    bottle.matrixWorld.decompose(s.at, s.now, s.scale)
+    from.matrixWorld.decompose(s.at, s.frame, s.scale)
+    s.now.premultiply(s.frame.invert())
+    if (s.seen && dt > 0) spinBetween(s.before, s.now, dt, s.spin)
+    else s.spin.set(0, 0, 0)
+    s.before.copy(s.now)
+    s.seen = true
+    stepSlosh(s.slosh, s.spin, dt, reducedMotion)
+    sloshNormal(s.slosh, normal)
+  })
+  return <group ref={mark} />
+}
+
+/** The close look: the bottle rises from the table, stands up, leans and tips under a finger and rights itself, its liquid sloshing. */
 export function PotionCloseUpStage({ params, reducedMotion, name, ...rig }: CloseUpProps) {
   const spec = useMemo(() => compilePotion(params), [params])
   const item = useMemo(() => potionHeldItem(spec), [spec])
@@ -58,6 +104,7 @@ export function PotionCloseUpStage({ params, reducedMotion, name, ...rig }: Clos
   const glow = useRef(potionGlowColour(params))
   glow.current = potionGlowColour(params)
   const clock = useLiquidClock(reducedMotion)
+  const [surface] = useState(() => new THREE.Vector3(0, 1, 0))
   // The rig wants a component; this one closes over the clock and the glow, which it reads as it draws.
   const Lights = useMemo(
     () =>
@@ -93,9 +140,10 @@ export function PotionCloseUpStage({ params, reducedMotion, name, ...rig }: Clos
     >
       {(flourishAt, up) => (
         <>
-          <PotionMesh spec={spec} upFrom={up} clock={clock} label={label} />
+          <PotionMesh spec={spec} upFrom={up} surfaceNormal={surface} clock={clock} label={label} />
+          <Sloshing up={up} normal={surface} reducedMotion={reducedMotion} />
           {PROBE && <FlourishProbe at={flourishAt} />}
-          {PROBE && <PotionPoseProbe up={up} />}
+          {PROBE && <PotionPoseProbe up={up} surface={surface} />}
         </>
       )}
     </HeldRig>

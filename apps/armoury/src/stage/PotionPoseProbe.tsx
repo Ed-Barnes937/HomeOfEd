@@ -5,12 +5,27 @@ import * as THREE from 'three'
 // Dev-only, for the GPU gate shots: publishes the bottle's pose as last drawn, from its glass's
 // world matrix against the up frame and the camera, in degrees.
 interface Probe {
-  potionPose?: { lean: number; tip: number; tilt: number } | null
+  potionPose?: {
+    lean: number
+    tip: number
+    tilt: number
+    /** The liquid surface's tilt from level, and its parts in the screen plane (positive: right side up) and towards the viewer (far side up). */
+    wobble: number
+    wobbleLean: number
+    wobbleTip: number
+  } | null
 }
 
 const DEGREES = 180 / Math.PI
 
-export function PotionPoseProbe({ up }: { up: RefObject<THREE.Object3D | null> }) {
+export function PotionPoseProbe({
+  up,
+  surface,
+}: {
+  up: RefObject<THREE.Object3D | null>
+  /** The liquid surface's normal in the up frame. */
+  surface: THREE.Vector3
+}) {
   const mark = useRef<THREE.Group>(null)
   const v = useMemo(
     () => ({
@@ -47,6 +62,9 @@ export function PotionPoseProbe({ up }: { up: RefObject<THREE.Object3D | null> }
       lean: Math.atan2(across, along) * DEGREES,
       tip: Math.asin(THREE.MathUtils.clamp(towards, -1, 1)) * DEGREES,
       tilt: Math.acos(THREE.MathUtils.clamp(along, -1, 1)) * DEGREES,
+      wobble: Math.acos(THREE.MathUtils.clamp(surface.y / surface.length(), -1, 1)) * DEGREES,
+      wobbleLean: Math.atan2(-surface.x, surface.y) * DEGREES,
+      wobbleTip: Math.atan2(surface.z, surface.y) * DEGREES,
     }
   }, -1)
   return <group ref={mark} />
