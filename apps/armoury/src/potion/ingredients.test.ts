@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { isForbiddenName } from './doNotUse.ts'
 import { type EffectKind, INGREDIENTS, ingredient, type Trait } from './ingredients.ts'
 import { mixPotion } from './mix.ts'
+import { hexToOklch } from './mixColour.ts'
 
 const TRAITS: Trait[] = ['clear', 'cloud', 'fizz', 'glitter', 'glow', 'swirl', 'murk']
 const EFFECTS: EffectKind[] = ['floating', 'sparkling', 'dreamy', 'glowing', 'whirling', 'whiffy']
@@ -42,6 +43,13 @@ describe('INGREDIENTS', () => {
       expect(TRAITS).toContain(i.trait)
       expect(EFFECTS).toContain(i.effect)
     }
+  })
+
+  it('keeps the rainbow order of hue round the wheel', () => {
+    const hues = INGREDIENTS.map((i) => hexToOklch(i.colour).h)
+    const steps = hues.map((h, n) => (hues[(n + 1) % hues.length]! - h + 360) % 360)
+    for (const step of steps) expect(step).toBeGreaterThan(0)
+    expect(steps.reduce((a, b) => a + b, 0)).toBeCloseTo(360, 6)
   })
 
   it('has one-sentence lore ending in a full stop', () => {
