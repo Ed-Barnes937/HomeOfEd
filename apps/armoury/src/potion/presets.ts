@@ -1,18 +1,23 @@
 import { defaults, type Params } from '../engine/schema.ts'
-import { potionSchema } from './potionSchema.ts'
 import { type IngredientId } from './ingredients.ts'
+import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
 
-const recipe = (pours: IngredientId[], values: Params): Params => ({
+const recipe = (
+  pours: [IngredientId, IngredientId, IngredientId],
+  mixed: 'no' | 'yes',
+  values: Params,
+): Params => ({
   ...defaults(potionSchema),
   ...withPours(pours),
+  mixed,
   ...values,
 })
 
 export const potionPresets: { name: string; params: Params }[] = [
   {
     name: 'Rosy Moonrise',
-    params: recipe(['moonmilk', 'rosehip', 'starpetal'], {
+    params: recipe(['moonmilk', 'rosehip', 'starpetal'], 'no', {
       shape: 'teardrop',
       neck: 0.4,
       glass: 'clear',
@@ -22,7 +27,7 @@ export const potionPresets: { name: string; params: Params }[] = [
   },
   {
     name: 'Early Riser',
-    params: recipe(['bluebell', 'frogfizz', 'starpetal', 'emberroot'], {
+    params: recipe(['bluebell', 'starpetal', 'emberroot'], 'yes', {
       shape: 'round',
       neck: 0.3,
       glass: 'sea',
@@ -32,7 +37,7 @@ export const potionPresets: { name: string; params: Params }[] = [
   },
   {
     name: 'Puddle Jumper',
-    params: recipe(['bogmurk', 'frogfizz', 'snailshine'], {
+    params: recipe(['frogfizz', 'bluebell', 'puffcap'], 'yes', {
       shape: 'tall',
       neck: 0.6,
       glass: 'smoky',
@@ -42,7 +47,7 @@ export const potionPresets: { name: string; params: Params }[] = [
   },
   {
     name: 'Brewing Weather',
-    params: recipe(['thundercloud', 'snailshine', 'moonmilk'], {
+    params: recipe(['thundercloud', 'snailshine', 'moonmilk'], 'yes', {
       shape: 'shoulder',
       neck: 0.5,
       glass: 'violet',
@@ -52,7 +57,7 @@ export const potionPresets: { name: string; params: Params }[] = [
   },
   {
     name: 'Hearth Warmer',
-    params: recipe(['emberroot', 'emberroot', 'starpetal'], {
+    params: recipe(['emberroot', 'emberroot', 'puffcap'], 'yes', {
       shape: 'gourd',
       neck: 0.7,
       glass: 'amber',
@@ -62,7 +67,7 @@ export const potionPresets: { name: string; params: Params }[] = [
   },
   {
     name: 'Pebble Beach',
-    params: recipe(['snailshine', 'bluebell', 'snailshine', 'bluebell'], {
+    params: recipe(['snailshine', 'bluebell', 'bluebell'], 'yes', {
       shape: 'teardrop',
       neck: 0.8,
       glass: 'sea',
@@ -72,7 +77,7 @@ export const potionPresets: { name: string; params: Params }[] = [
   },
   {
     name: 'Night Sky',
-    params: recipe(['starpetal', 'starpetal', 'starpetal', 'starpetal'], {
+    params: recipe(['moonmilk', 'moonmilk', 'rosehip'], 'yes', {
       shape: 'round',
       neck: 0.1,
       glass: 'violet',
@@ -81,8 +86,8 @@ export const potionPresets: { name: string; params: Params }[] = [
     }),
   },
   {
-    name: 'Pink Hum',
-    params: recipe(['rosehip', 'rosehip'], {
+    name: 'Lily Pad',
+    params: recipe(['frogfizz', 'frogfizz', 'snailshine'], 'yes', {
       shape: 'tall',
       neck: 0.9,
       glass: 'clear',

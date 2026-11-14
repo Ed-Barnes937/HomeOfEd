@@ -6,9 +6,10 @@ export type GlassId = 'clear' | 'sea' | 'amber' | 'violet' | 'smoky'
 export type StopperId = 'cork' | 'glass' | 'wax'
 export type LabelId = 'none' | 'round' | 'banner' | 'tag'
 
-export const POUR_KEYS = ['pour1', 'pour2', 'pour3', 'pour4'] as const
+export const POUR_KEYS = ['pour1', 'pour2', 'pour3'] as const
 export type PourKey = (typeof POUR_KEYS)[number]
 export const MAX_POURS = POUR_KEYS.length
+export const isMixed = (p: Params) => p.mixed === 'yes'
 export const isPourKey = (key: string): key is PourKey =>
   (POUR_KEYS as readonly string[]).includes(key)
 
@@ -28,12 +29,12 @@ export function potionSwatchFor(key: string, value: string): string | undefined 
   return undefined
 }
 
-const pourOptions = (noneWeight: number): ChoiceOption[] => [
-  { value: 'none', label: 'Empty', weight: noneWeight },
+const pourOptions: ChoiceOption[] = [
+  { value: 'none', label: 'Empty', weight: 0 },
   ...INGREDIENTS.map((i) => ({ value: i.id, label: i.label })),
 ]
 
-// No gaps: a slot is open only while the one below it holds a pour.
+// No gaps: a slot is open only while the one below it holds an ingredient.
 const pourAllowed = (below: PourKey) => (p: Params) =>
   p[below] === 'none' ? ['none'] : ['none', ...INGREDIENTS.map((i) => i.id)]
 
@@ -48,37 +49,40 @@ export const potionSchema: ItemSchema = {
     {
       kind: 'choice',
       key: 'pour1',
-      label: 'First pour',
+      label: 'First ingredient',
       group: 'pours',
       default: 'moonmilk' satisfies IngredientId,
-      options: pourOptions(0),
+      options: pourOptions,
     },
     {
       kind: 'choice',
       key: 'pour2',
-      label: 'Second pour',
+      label: 'Second ingredient',
       group: 'pours',
       default: 'rosehip' satisfies IngredientId,
-      options: pourOptions(0),
+      options: pourOptions,
       allowed: pourAllowed('pour1'),
     },
     {
       kind: 'choice',
       key: 'pour3',
-      label: 'Third pour',
+      label: 'Third ingredient',
       group: 'pours',
       default: 'starpetal' satisfies IngredientId,
-      options: pourOptions(2),
+      options: pourOptions,
       allowed: pourAllowed('pour2'),
     },
     {
       kind: 'choice',
-      key: 'pour4',
-      label: 'Fourth pour',
+      key: 'mixed',
+      label: 'Mixed',
       group: 'pours',
-      default: 'none',
-      options: pourOptions(2),
-      allowed: pourAllowed('pour3'),
+      default: 'no',
+      options: [
+        { value: 'no', label: 'Not mixed' },
+        { value: 'yes', label: 'Mixed', weight: 0 },
+      ],
+      allowed: (p) => (p.pour3 === 'none' ? ['no'] : ['no', 'yes']),
     },
 
     {

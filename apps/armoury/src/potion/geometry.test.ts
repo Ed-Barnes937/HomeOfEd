@@ -14,7 +14,7 @@ import { BASE_MM, bottleProfile, type BottleProfile, LIQUID_GAP_MM } from './pro
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
 const STOPPERS: StopperId[] = ['cork', 'glass', 'wax']
 const LABELS: LabelId[] = ['round', 'banner', 'tag']
-const FOUR: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal', 'bluebell']
+const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
 
 interface Entry {
   name: string
@@ -28,7 +28,7 @@ function entry(
   neck: number,
   stopper: StopperId,
   label: LabelId,
-  pours = FOUR,
+  pours = THREE,
 ): Entry {
   const spec = compilePotion(
     normalise(potionSchema, { ...withPours(pours), shape, neck, stopper, label }),
@@ -61,7 +61,7 @@ const CATALOGUE: Entry[] = [
   ),
   ...STOPPERS.map((stopper) => entry('teardrop', 0.5, stopper, 'none')),
   entry('round', 0, 'wax', 'round', []),
-  entry('gourd', 1, 'glass', 'banner', ['bogmurk']),
+  entry('gourd', 1, 'glass', 'banner', ['puffcap']),
   entry('teardrop', 0.4, 'wax', 'round'),
   entry('round', 0.1, 'wax', 'banner'),
   entry('tall', 0, 'wax', 'tag'),

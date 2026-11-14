@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react'
 
 import type { Params } from '../engine/schema.ts'
 import { compilePotion, type PotionSpec } from '../potion/compile.ts'
-import { potionOutline } from '../potion/outline.ts'
+import { potionOutline, type PotionSilhouette } from '../potion/outline.ts'
 import { GLASS_TINTS } from '../potion/potionSchema.ts'
 
 type Point = [number, number]
@@ -13,6 +13,13 @@ function stopperColour(spec: PotionSpec): string {
   if (spec.stopper === 'glass') return GLASS_TINTS[spec.glass]
   if (spec.stopper === 'wax') return spec.waxColour ?? CORK
   return CORK
+}
+
+/** The bands' risen sides run on into one column, mirrored back down: a single fill to the full level. */
+function mixedLiquid(bands: PotionSilhouette['bands'], colour: string): PotionSilhouette['bands'] {
+  const risen = bands.flatMap((band) => band.points.slice(0, band.points.length / 2))
+  const mirrored = [...risen].reverse().map(([x, y]): Point => [-x, y])
+  return [{ colour, points: [...risen, ...mirrored] }]
 }
 
 /** The bottle drawn flat from the side: the glass in a faint line, the pours in their colours, the stopper. */
@@ -32,9 +39,10 @@ export const PotionOutline = memo(function PotionOutline({
     `M${points.map(([x, y]) => `${x.toFixed(1)} ${(heightMm - y).toFixed(1)}`).join('L')}Z`
   const pad = 2
   const viewBox = [-widthMm / 2 - pad, -pad, widthMm + pad * 2, heightMm + pad * 2].join(' ')
+  const liquid = spec.mix && spec.mixed ? mixedLiquid(silhouette.bands, spec.mix.colour) : null
   return (
     <svg className={className} viewBox={viewBox} aria-hidden="true">
-      {silhouette.bands.map((band, i) => (
+      {(liquid ?? silhouette.bands).map((band, i) => (
         <path key={i} d={pathOf(band.points)} fill={band.colour} />
       ))}
       <path

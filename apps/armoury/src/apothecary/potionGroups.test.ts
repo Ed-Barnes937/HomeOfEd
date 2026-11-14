@@ -15,18 +15,20 @@ const potion = (values: Params) =>
 describe('visibleGroups', () => {
   it("shows the first-visit potion's three groups, numbered in order, each with its summary", () => {
     expect(shown(potionItem.firstVisit())).toEqual([
-      ['i.', 'What goes in', 'Pours', 'Three pours'],
+      ['i.', 'What goes in', 'Pours', 'Three'],
       ['ii.', 'The bottle', 'Bottle', 'Teardrop flask'],
       ['iii.', 'Stopper and label', 'Finish', 'Cork'],
     ])
   })
 
-  it('counts the pours in words, and calls a bottle with none empty', () => {
+  it('counts the pours in words, calls a bottle with none empty and a mixed one mixed', () => {
     const pours = (p: Params) => visibleGroups(p)[0]!.summary(p)
-    expect(pours(potion(withPours(['frogfizz'])))).toBe('One pour')
     expect(pours(potion(withPours([])))).toBe('Empty')
-    expect(pours(potion(withPours(['frogfizz', 'moonmilk', 'rosehip', 'bluebell'])))).toBe(
-      'Four pours',
+    expect(pours(potion(withPours(['frogfizz'])))).toBe('One')
+    expect(pours(potion(withPours(['frogfizz', 'moonmilk'])))).toBe('Two')
+    expect(pours(potion(withPours(['frogfizz', 'moonmilk', 'rosehip'])))).toBe('Three')
+    expect(pours(potion({ ...withPours(['frogfizz', 'moonmilk', 'rosehip']), mixed: 'yes' }))).toBe(
+      'Mixed',
     )
   })
 

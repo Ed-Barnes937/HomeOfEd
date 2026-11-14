@@ -18,9 +18,9 @@ import {
 } from './profile.ts'
 
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
-const FOUR: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal', 'bluebell']
+const THREE: IngredientId[] = ['moonmilk', 'rosehip', 'starpetal']
 
-const specOf = (shape: ShapeId, neck: number, pours: IngredientId[] = FOUR): PotionSpec =>
+const specOf = (shape: ShapeId, neck: number, pours: IngredientId[] = THREE): PotionSpec =>
   compilePotion(normalise(potionSchema, { ...withPours(pours), shape, neck }))
 
 const CATALOGUE = SHAPES.flatMap((shape) =>
@@ -222,7 +222,7 @@ describe('the stoppers', () => {
   const WAXED = SHAPES.flatMap((shape) =>
     [0, 0.5, 1].map((neck) => {
       const spec = compilePotion(
-        normalise(potionSchema, { ...withPours(FOUR), shape, neck, stopper: 'wax' }),
+        normalise(potionSchema, { ...withPours(THREE), shape, neck, stopper: 'wax' }),
       )
       const ring = 2 * (BOTTLES[shape].neckRadiusMm + BOTTLES[shape].lipMm)
       return { name: `${shape} neck ${neck}`, profile: bottleProfile(spec), ring }
@@ -295,17 +295,17 @@ describe('the stoppers', () => {
 
 describe('uprightLevels', () => {
   it.each(CATALOGUE)(
-    '$name: each pour adds a quarter of the volume to fullZ, within a hundred-thousandth',
+    '$name: each pour adds a third of the volume to fullZ, within a hundred-thousandth',
     ({ spec, profile }) => {
       const levels = uprightLevels(spec)
-      expect(levels).toHaveLength(4)
+      expect(levels).toHaveLength(3)
       expect(levels.at(-1)).toBeCloseTo(profile.fullZ, 6)
       const full = simpsonVolume(profile, BASE_MM, profile.fullZ)
       let below = BASE_MM
       for (const top of levels) {
         expect(top).toBeGreaterThan(below)
         const band = simpsonVolume(profile, below, top)
-        expect(Math.abs(band / (full / 4) - 1)).toBeLessThan(1e-5)
+        expect(Math.abs(band / (full / 3) - 1)).toBeLessThan(1e-5)
         below = top
       }
     },
@@ -314,7 +314,7 @@ describe('uprightLevels', () => {
   it('gives one level per pour, the same heights as the full bottle', () => {
     const full = uprightLevels(specOf('gourd', 0.5))
     for (const n of [0, 1, 2, 3]) {
-      expect(uprightLevels(specOf('gourd', 0.5, FOUR.slice(0, n)))).toEqual(full.slice(0, n))
+      expect(uprightLevels(specOf('gourd', 0.5, THREE.slice(0, n)))).toEqual(full.slice(0, n))
     }
   })
 })
