@@ -151,13 +151,17 @@ in the liquid or the light moves.
 and keeps the glass's added light, so the glass does not wash out or dark-edge on the card.
 
 **Colours.** Under M1 and every tint the nine ingredients keep the wheel's rainbow order of hue
-(OKLCH): Emberroot `#f0892a` (h 57), Starpetal 85, Frogfizz 136, Snailshine 183, Bluebell 263,
+(OKLCH): Emberroot `#f0892a` (h 57), Starpetal `#f8d14f` (h 92), Frogfizz 136, Snailshine 183, Bluebell 263,
 Thundercloud `#5a4ab8` (h 285), Moonmilk `#c7b2f0` (h 300), Rosehip `#e0479a` (h 351), Puffcap
 `#d42c2c` (h 27). Rosehip, Puffcap and Emberroot were 19 and 29 degrees apart and are now 36 and
 30; Moonmilk was near white (chroma 0.02) and read as pale lavender milk, the spike's weakest
 layer, and is now a pearly lilac (chroma 0.09); Thundercloud went near black through the
-liquid's depth and every tint, so it is lighter (L 0.42 to 0.49) at the same hue. `MURK_REACH` is untouched, and the potion suite's
-colour bounds hold. Presets keep their bottles and finishes.
+liquid's depth and every tint, so it is lighter (L 0.42 to 0.49) at the same hue. Those moves
+left Emberroot and Starpetal the closest neighbours (28 degrees, OKLab 0.131), so Starpetal is a
+lighter, yellower gold (`#f2c14e` to `#f8d14f`, L 0.83 to 0.87, h 85 to 92): the pair is now 35
+degrees and 0.171 apart, Starpetal and Frogfizz 44 degrees and 0.161, and the closest pair is
+Rosehip and Puffcap at 0.143. A unit test pins the rainbow order. `MURK_REACH` is untouched, and
+the potion suite's colour bounds hold. Presets keep their bottles and finishes.
 
 **The wax seal (ticket 09's deferral).** Judged in the glossy wax on the round flask at neck 0
 and 0.1: the sheen along the bell and the beaded runs read as dripped wax. The prescribed
