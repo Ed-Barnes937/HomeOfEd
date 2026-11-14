@@ -26,3 +26,4 @@ Frames taken by the reviewer at 900x700 and 1024x768, potion shop and smithy:
   (`03-flaky-header-width-test.md`, "at 1350px").
 
 ## Comments
+- 2026-11-14: seen again by ticket 10's fix builder at 900x900 in the potion shop; there the bottle's right edge is also cut by the scene's edge at that width (that part is the potion scene's, for the potions epic's final gate).
