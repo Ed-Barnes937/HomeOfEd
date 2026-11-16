@@ -83,6 +83,9 @@ void main() {
   float r = length(c);
   float edge = 1.0 - smoothstep(0.8, 1.0, r);
   vec3 col = vColour;
+  // The colour at full strength, so a dark potion's lights are as bright as a pale one's. ACES
+  // washes anything much past 0.6 towards white, so the lights keep under it but for their cores.
+  vec3 hue = vColour / max(max(vColour.r, vColour.g), max(vColour.b, 0.001));
   float a;
   float cover = 0.0;
   if (vShape < ${shape('bubble')} || (vShape > ${shape('wisp')} && vShape < ${shape('blob')})) {
@@ -101,19 +104,19 @@ void main() {
     float core = exp(-r * r * 40.0);
     float flare = exp(-abs(q.x) * 14.0 - abs(q.y) * 2.4) + exp(-abs(q.y) * 14.0 - abs(q.x) * 2.4);
     a = (core + 0.75 * flare + 0.4 * exp(-r * r * 6.0)) * edge;
-    col = vColour * (1.3 + 0.8 * flare) + vec3(1.8 * core);
+    col = hue * 0.6 + vec3(0.8 * core);
   } else if (vShape < ${shape('star')}) {
     float star = 1.0 - smoothstep(-0.03, 0.04, effectStar(effectTurn(c, vWarp), 0.56, 0.5) - 0.05);
     a = 0.95 * star + 0.5 * exp(-r * r * 3.5) * edge;
-    col = mix(vColour * 1.3, mix(vColour, vec3(1.0), 0.25) * 1.5, star) + vec3(0.7 * exp(-r * r * 24.0));
+    col = mix(hue * 0.55, mix(hue, vec3(1.0), 0.15) * 0.6, star) + vec3(0.25 * exp(-r * r * 24.0));
   } else if (vShape < ${shape('mote')}) {
     float core = exp(-r * r * 60.0);
     float mid = exp(-r * r * 14.0);
     a = (core + 0.6 * mid + 0.35 * exp(-r * r * 3.5)) * edge;
     col = vColour * (1.2 + mid) + vec3(1.6 * core);
   } else if (vShape < ${shape('ribbon')}) {
-    a = 0.22 * exp(-r * r * 3.5) * edge;
-    col = vColour * 1.6 + vec3(0.3 * exp(-r * r * 20.0));
+    a = 0.14 * exp(-r * r * 3.0) * edge;
+    col = hue * 0.65 + vec3(0.2 * exp(-r * r * 20.0));
   } else if (vShape < ${shape('wisp')}) {
     // Smoke: a soft lump lit from the candle's side, greyed a little.
     bool puff = vShape < ${shape('smoke')};
@@ -151,7 +154,7 @@ const sameEffect = (a: PotionEffect, b: PotionEffect | null) =>
     a.colours.join() === b.colours.join())
 
 /** The effect's one draw: buffers and a material built once, written each frame of a show and never grown. */
-function createField() {
+export function createField() {
   const position = new THREE.BufferAttribute(new Float32Array(MAX_POINTS * 3), 3)
   const look = new THREE.BufferAttribute(new Float32Array(MAX_POINTS * 4), 4)
   const tint = new THREE.BufferAttribute(new Float32Array(MAX_POINTS), 1)
