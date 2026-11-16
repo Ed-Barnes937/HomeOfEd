@@ -484,7 +484,7 @@ PotionTraits potionTraitsMix(PotionTraits a, PotionTraits b, float s) {
   return PotionTraits(mix(a.cloud, b.cloud, s), mix(a.swirl, b.swirl, s), mix(a.pearl, b.pearl, s),
     mix(a.glow, b.glow, s), mix(a.fleck, b.fleck, s), mix(a.tint, b.tint, s), mix(a.cling, b.cling, s));
 }
-// The bands' colour and traits at height h along the surface's up: one function of h, so a mix can blend it later.
+// The bands' colour and traits at height h along the surface's up: one function of h, which the mix blends.
 vec3 potionBand(float h, out PotionTraits t) {
   vec3 c = uColour[0];
   t = potionTraitsOf(0);
