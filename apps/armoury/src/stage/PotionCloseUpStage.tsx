@@ -4,8 +4,11 @@ import * as THREE from 'three'
 
 import { compilePotion, type PotionSpec } from '../potion/compile.ts'
 import { isGold, potionGlowColour, potionName } from '../potion/describe.ts'
+import { potionEffect } from '../potion/effects.ts'
 import { potionOutline } from '../potion/outline.ts'
 import { bottleProfile } from '../potion/profile.ts'
+import { effectSeed } from './effectKinds.ts'
+import { EffectShow } from './EffectShow.tsx'
 import { FlourishProbe, PROBE } from './FlourishProbe.tsx'
 import { HeldRig, type HeldItem } from './HeldRig.tsx'
 import { CLAY, PotionMesh, sameBuild } from './PotionMesh.tsx'
@@ -108,6 +111,71 @@ function Sloshing({
   return <group ref={mark} />
 }
 
+/** The mouth the effect leaves by, a little inside the bore, mm below the lip. */
+const MOUTH_BELOW_LIP_MM = 3
+/** How far the popped stopper swings aside of the neck, and how far it leans out there. */
+const ASIDE = { neckRadii: 2.6, plusMm: 3, lean: 0.4 }
+/** The bottle leans this far across the screen before its stopper swings to the upper side. */
+const ASIDE_LEAN = 0.12
+
+/** Scratch for swinging the stopper aside, and where it last swung. */
+const asideWork = () => ({
+  stopper: null as THREE.Object3D | null,
+  side: 1,
+  popped: false,
+  drawn: 0,
+  axis: new THREE.Vector3(),
+  across: new THREE.Vector3(),
+  to: new THREE.Vector3(),
+  about: new THREE.Vector3(),
+  pivot: new THREE.Vector3(),
+})
+
+/**
+ * Swings the popped stopper `aside` (0 to 1) of the neck across the screen, leaning out, so the
+ * effect has the neck's axis to itself: to the right, or to the upper side of a bottle that leans.
+ */
+function swingStopper(
+  w: ReturnType<typeof asideWork>,
+  bottle: THREE.Object3D | null,
+  show: PotionShow,
+  reachMm: number,
+  pivotMm: number,
+) {
+  const aside = show.stopperAside
+  if (aside === 0 && w.drawn === 0 && show.popped === w.popped) return
+  if (!w.stopper?.parent) w.stopper = bottle?.getObjectByName('stopper') ?? null
+  const frame = w.stopper?.parent
+  if (!w.stopper || !frame) return
+  // The bottle's own frame as last drawn: millimetres, its axis along z.
+  w.axis.setFromMatrixColumn(frame.matrixWorld, 2).normalize()
+  if (show.popped && !w.popped) w.side = w.axis.x > ASIDE_LEAN ? -1 : 1
+  w.popped = show.popped
+  w.drawn = aside
+  if (aside === 0) {
+    w.stopper.position.set(0, 0, 0)
+    w.stopper.quaternion.identity()
+    return
+  }
+  w.across.set(w.axis.y, -w.axis.x, 0)
+  if (w.across.lengthSq() < 1e-6) w.across.set(1, 0, 0)
+  w.across.normalize().multiplyScalar(w.side)
+  w.to.set(
+    w.across.dot(w.axis.setFromMatrixColumn(frame.matrixWorld, 0).normalize()),
+    w.across.dot(w.axis.setFromMatrixColumn(frame.matrixWorld, 1).normalize()),
+    0,
+  )
+  w.about.set(-w.to.y, w.to.x, 0).normalize()
+  w.stopper.quaternion.setFromAxisAngle(w.about, ASIDE.lean * aside)
+  w.pivot.set(0, 0, pivotMm)
+  w.stopper.position
+    .copy(w.pivot)
+    .applyQuaternion(w.stopper.quaternion)
+    .negate()
+    .add(w.pivot)
+    .addScaledVector(w.to, reachMm * aside)
+}
+
 /** What the show writes each frame for the bottle to read as it is drawn. */
 interface Drawn {
   show: { current: PotionShow }
@@ -119,7 +187,7 @@ interface Drawn {
 /**
  * Plays the show on the rig's clock: a new one from each flourish, by the potion as it is at that
  * moment, eased to rest when the bottle is put back. Writes the liquid's mix and the stopper's
- * pose into `drawn` and lifts `lifted` along the bottle's axis.
+ * pose into `drawn`, lifts `lifted` along the bottle's axis and swings the popped stopper aside.
  */
 function Show({
   at,
@@ -138,8 +206,16 @@ function Show({
 }) {
   const [player] = useState(() => new PotionShowPlayer())
   const s = useRef({ played: null as number | null, left: false })
+  const [aside] = useState(asideWork)
   const bottle = useBuildSpec(spec)
-  const plugMm = useMemo(() => bottleProfile(bottle).stopperSeat.depthMm, [bottle])
+  const { plugMm, lipMm, asideMm } = useMemo(() => {
+    const profile = bottleProfile(bottle)
+    return {
+      plugMm: profile.stopperSeat.depthMm,
+      lipMm: profile.lipZ,
+      asideMm: ASIDE.neckRadii * profile.neckR + ASIDE.plusMm,
+    }
+  }, [bottle])
   useFrame(({ clock }) => {
     const now = clock.elapsedTime
     if (leaving.current) {
@@ -153,6 +229,7 @@ function Show({
     drawn.show.current = show
     drawn.stopperLift.current = show.stopperLift * plugMm
     drawn.stopperTurn.current = show.stopperTurn
+    swingStopper(aside, lifted.current, show, asideMm, lipMm + drawn.stopperLift.current)
     if (lifted.current) lifted.current.position.y = show.lift * spec.heightMm * MM
   })
   return null
@@ -166,6 +243,15 @@ export function PotionCloseUpStage({ params, reducedMotion, name, ref, ...rig }:
   const held = useRef<CloseUpHandle>(null)
   const leaving = useRef(false)
   const lifted = useRef<THREE.Group>(null)
+  const mouth = useRef<THREE.Group>(null)
+  const effect = useMemo(() => potionEffect({ ...params, mixed: 'yes' }), [params])
+  const { seed, mouthY } = useMemo(
+    () => ({
+      seed: effectSeed(bottle.layers.map((layer) => layer.ingredient).join()),
+      mouthY: (bottleProfile(bottle).lipZ - MOUTH_BELOW_LIP_MM - bottle.heightMm / 2) * MM,
+    }),
+    [bottle],
+  )
   const [drawn] = useState((): Drawn => ({
     show: { current: showRest(spec.mixed ? 1 : 0) },
     stopperLift: { current: 0 },
@@ -237,6 +323,7 @@ export function PotionCloseUpStage({ params, reducedMotion, name, ref, ...rig }:
               stopperLift={drawn.stopperLift}
               stopperTurn={drawn.stopperTurn}
             />
+            <group ref={mouth} position={[0, mouthY, 0]} />
           </group>
           <Sloshing up={up} normal={surface} reducedMotion={reducedMotion} />
           <Show
@@ -246,6 +333,13 @@ export function PotionCloseUpStage({ params, reducedMotion, name, ref, ...rig }:
             leaving={leaving}
             drawn={drawn}
             lifted={lifted}
+          />
+          <EffectShow
+            show={drawn.show}
+            mouth={mouth}
+            effect={effect}
+            seed={seed}
+            bottle={bottle.heightMm * MM}
           />
           {PROBE && <FlourishProbe at={flourishAt} seconds={item.flourishSeconds} />}
           {PROBE && <PotionPoseProbe up={up} surface={surface} />}
