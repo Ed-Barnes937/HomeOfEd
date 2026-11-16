@@ -119,6 +119,8 @@ const POTION_CLOSE_FRAMES = options.close ? CLOSE_FRAMES : [100, 400, 1200, 4800
 const SHOP_PATHS = { wand: '/', sword: '/swords', potion: '/potions' }
 // Textures and the HDRI load after the stage chunk; this is time for them to upload and draw.
 const SETTLE_MS = 3500
+// A screenshot waits its turn when other work is using the GPU; Playwright's own limit is 30 s.
+const ACTION_TIMEOUT_MS = 120000
 
 const browser = await chromium.launch({
   headless: true,
@@ -137,6 +139,7 @@ try {
         acceptDownloads: true,
       })
       const page = await ctx.newPage()
+      page.setDefaultTimeout(ACTION_TIMEOUT_MS)
       const shot = (what) => join(out, `${name}-${view.tag}-${what}.png`)
       // A wand opens at the root as it always has; a sword or a potion goes straight to its shop.
       const search = new URLSearchParams()
