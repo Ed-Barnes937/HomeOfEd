@@ -413,6 +413,39 @@ const UNDER_DARK = 0.42
 
 const fixed = (v: number) => v.toFixed(4)
 
+/** The vortex that winds the bands into the mix (ADR 0111, "The mix"); lengths in mm, angles in radians. */
+export const VORTEX = {
+  /** The twist about the bottle's axis for each mm up the liquid, and each mm out from the axis. */
+  pitch: 0.085,
+  radial: 0.05,
+  /** How far a band's edge is carried up and down at full swirl, and the churn on top, in liquid heights. */
+  reach: 0.34,
+  churn: 0.12,
+  /** Inside this radius the pull falls away to nothing on the axis. */
+  axisMm: 4,
+  /** How unevenly the liquid mixes while it swirls: streaks of it turn before the rest. */
+  spread: 1.2,
+  /** The most of the ingredients' colours a replay's streaks show through the mix. */
+  flare: 0.6,
+}
+
+/**
+ * How far along the up the bands' coordinate is carried at `p` (the bottle's mm frame), `h` along
+ * the up, in a liquid `span` deep: the vortex's lobe, without its churn. The shader's twin.
+ */
+export function vortexShift(
+  p: readonly [number, number, number],
+  h: number,
+  span: number,
+  swirl: number,
+  spin: number,
+): number {
+  const r = Math.hypot(p[0], p[1])
+  const a = VORTEX.pitch * h + VORTEX.radial * r - spin
+  const across = p[0] * Math.cos(a) - p[1] * Math.sin(a)
+  return swirl * span * VORTEX.reach * (across / Math.max(r, VORTEX.axisMm))
+}
+
 const LIQUID_PARS = /* glsl */ `
 uniform vec3 uUp, uEye;
 uniform float uLevels[${MAX_POURS}];
@@ -426,6 +459,8 @@ uniform float uGlow[${MAX_POURS}];
 uniform float uFleck[${MAX_POURS}];
 uniform vec3 uFleckTint[${MAX_POURS}];
 uniform float uCling[${MAX_POURS}];
+uniform float uMix, uVortex, uSpin, uMixCloud, uMixSwirl, uMixPearl, uMixGlow, uMixFleck, uMixCling;
+uniform vec3 uMixColour, uMixFleckTint;
 uniform float uTime, uFloor, uDepth, uSelf, uDiffuse, uThru, uCap, uMilkSheen, uSurfaceSheen;
 uniform vec3 uKeyDir, uKeyColour, uBackDir, uBackColour;
 varying vec3 vBottle;
@@ -460,6 +495,18 @@ vec3 potionBand(float h, out PotionTraits t) {
     t = potionTraitsMix(t, potionTraitsOf(i + 1), s);
   }
   return c;
+}
+// The vortex at p, h along the up: x is how far the bands' coordinate is carried, y its streaks (0 to 1).
+vec2 potionVortex(vec3 p, float h, float span) {
+  float r = length(p.xy);
+  float a = ${fixed(VORTEX.pitch)} * h + ${fixed(VORTEX.radial)} * r - uSpin;
+  float ca = cos(a);
+  float sa = sin(a);
+  vec2 q = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+  float churn = potionNoise(vec3(q, h) * 0.035);
+  float lobe = q.x / max(r, ${fixed(VORTEX.axisMm)});
+  float streak = 0.5 + 0.5 * sin(0.22 * q.y + 0.1 * h + 3.0 * churn);
+  return vec2(uVortex * span * (${fixed(VORTEX.reach)} * lobe + ${fixed(VORTEX.churn)} * churn), streak);
 }
 // A band's own texture over its colour, in the level frame so streaks lie level; vein is the marbling's light veins.
 vec3 potionTrait(vec3 c, PotionTraits t, vec3 p, out float vein) {
@@ -506,7 +553,18 @@ if (liqSurface) {
 }
 PotionTraits liqTraits;
 float liqVein;
-vec3 liqAlbedo = potionTrait(potionBand(liqH, liqTraits), liqTraits, liqP, liqVein);
+float liqMixed = uMix;
+float liqBandH = liqH;
+if (uVortex > 0.0) {
+  vec2 vortex = potionVortex(liqP, liqH, liqTop - uFloor);
+  float spread = ${fixed(VORTEX.spread)} * uVortex;
+  liqBandH += vortex.x;
+  liqMixed = clamp(uMix * (1.0 + spread) - spread * vortex.y, 0.0, 1.0);
+  liqMixed = min(liqMixed, 1.0 - ${fixed(VORTEX.flare)} * uVortex * smoothstep(0.62, 0.98, vortex.y));
+}
+vec3 liqLayered = potionBand(liqBandH, liqTraits);
+liqTraits = potionTraitsMix(liqTraits, PotionTraits(uMixCloud, uMixSwirl, uMixPearl, uMixGlow, uMixFleck, uMixFleckTint, uMixCling), liqMixed);
+vec3 liqAlbedo = potionTrait(mix(liqLayered, uMixColour, liqMixed), liqTraits, liqP, liqVein);
 float liqCloud = liqTraits.cloud;
 float liqDown = clamp((liqH - uFloor) / max(liqTop - uFloor, 1e-3), 0.0, 1.0);
 liqAlbedo *= mix(0.8, 1.04, liqDown) * (1.0 + 0.05 * potionNoise(liqP * 0.02 + vec3(0.0, uTime * 0.03, 0.0)));
@@ -615,6 +673,17 @@ export interface LiquidUniforms {
   uFleck: THREE.IUniform<number[]>
   uFleckTint: THREE.IUniform<THREE.Vector3[]>
   uCling: THREE.IUniform<number[]>
+  uMix: THREE.IUniform<number>
+  uVortex: THREE.IUniform<number>
+  uSpin: THREE.IUniform<number>
+  uMixColour: THREE.IUniform<THREE.Vector3>
+  uMixCloud: THREE.IUniform<number>
+  uMixSwirl: THREE.IUniform<number>
+  uMixPearl: THREE.IUniform<number>
+  uMixGlow: THREE.IUniform<number>
+  uMixFleck: THREE.IUniform<number>
+  uMixFleckTint: THREE.IUniform<THREE.Vector3>
+  uMixCling: THREE.IUniform<number>
   uTime: THREE.IUniform<number>
   uFloor: THREE.IUniform<number>
   uDepth: THREE.IUniform<number>
@@ -646,6 +715,17 @@ function liquidUniforms(): LiquidUniforms {
     uFleck: { value: new Array<number>(MAX_POURS).fill(0) },
     uFleckTint: { value: Array.from({ length: MAX_POURS }, () => new THREE.Vector3(1, 1, 1)) },
     uCling: { value: new Array<number>(MAX_POURS).fill(0) },
+    uMix: { value: 0 },
+    uVortex: { value: 0 },
+    uSpin: { value: 0 },
+    uMixColour: { value: v3() },
+    uMixCloud: { value: 0 },
+    uMixSwirl: { value: 0 },
+    uMixPearl: { value: 0 },
+    uMixGlow: { value: 0 },
+    uMixFleck: { value: 0 },
+    uMixFleckTint: { value: new THREE.Vector3(1, 1, 1) },
+    uMixCling: { value: 0 },
     uTime: { value: 0 },
     uFloor: { value: 0 },
     uDepth: { value: LIQUID.depth },
@@ -752,6 +832,10 @@ export interface Liquid {
    */
   setSurface(up: THREE.Vector3, levels: readonly number[], floor: number): void
   setLayers(layers: readonly LayerLook[]): void
+  /** The one liquid the layers mix into: its colour and trait; null for a bottle with no mix yet. */
+  setMixed(mixed: LayerLook | null): void
+  /** How mixed the liquid is drawn (0 its layers, 1 the mix), how strongly the vortex winds it (0 to 1) and how far that has turned, radians. */
+  setMix(mix: number, swirl: number, spin?: number): void
   dispose(): void
 }
 
@@ -801,6 +885,26 @@ export function createLiquid(): Liquid {
         u.uFleckTint.value[i]!.set(c.r, c.g, c.b)
         soft[i] = shading.cloud > 0 ? CLOUD_EDGE : 1
       }
+    },
+    setMixed(mixed) {
+      const u = uniforms
+      const { shading, tint: fleck } = mixed
+        ? traitLook(mixed.trait, mixed.ingredient)
+        : TRAIT_LOOKS.clear
+      if (mixed) liquidColour(mixed.colour, LIQUID.saturation, u.uMixColour.value)
+      u.uMixCloud.value = shading.cloud
+      u.uMixSwirl.value = shading.swirl
+      u.uMixPearl.value = shading.pearl
+      u.uMixGlow.value = shading.glow
+      u.uMixFleck.value = shading.fleck
+      u.uMixCling.value = shading.cling
+      const c = fleck && shading.fleck > 0 ? tint.set(fleck) : white
+      u.uMixFleckTint.value.set(c.r, c.g, c.b)
+    },
+    setMix(mix, swirl, spin = 0) {
+      uniforms.uMix.value = mix
+      uniforms.uVortex.value = swirl
+      uniforms.uSpin.value = spin
     },
     dispose() {
       surface.dispose()
