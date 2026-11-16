@@ -330,7 +330,7 @@ label, every ingredient, every one of the seven outcomes and one secret blend:
 |---|---|---|---|---|---|
 | 0 | Rosy Moonrise (first visit) | moonmilk, rosehip, starpetal | no | teardrop, neck 0.4, clear, cork, round | (dreamy once mixed) |
 | 1 | Early Riser | bluebell, starpetal, emberroot | yes | round, 0.3, sea, glass stopper, banner | Sunrise in a Bottle |
-| 2 | Puddle Jumper | frogfizz, bluebell, puffcap | yes | tall, 0.6, smoky, wax, tag | murky |
+| 2 | Puddle Jumper | frogfizz, bluebell, puffcap | yes | tall, 0.6, sea, cork, tag | murky |
 | 3 | Brewing Weather | thundercloud, snailshine, moonmilk | yes | shoulder, 0.5, violet, cork, none | whirling |
 | 4 | Hearth Warmer | emberroot, emberroot, puffcap | yes | gourd, 0.7, amber, cork, round | whiffy |
 | 5 | Pebble Beach | snailshine, bluebell, bluebell | yes | teardrop, 0.8, sea, glass stopper, tag | sparkling |
@@ -534,8 +534,8 @@ real-GPU gates for anything judged by eye.
   another always three and never mixed; the mixing rule over all 165 multisets (the counts above,
   exactly), order-free over every permutation, pure recipes give their own effect and are never
   murky, murky exactly when the gaps are 3,3,3 or 2,3,4, the 1-degree sector margin, the odds
-  under 729 ordered picks; mixed colours (effect chroma at least 0.12, murky chroma at most 0.05
-  and lightness at most 0.5, deterministic, order-free); `main` and `strength`; every reachable
+  under 729 ordered picks; mixed colours (effect chroma at least 0.12, murky chroma at most 0.065
+  and lightness 0.46 to 0.56, deterministic, order-free); `main` and `strength`; every reachable
   name against `isForbiddenName` and the drinking sweep; blends unique, unordered, reachable and
   only when mixed; presets normalise to themselves and cover the seven outcomes; the lathe and
   level maths with three thirds; the outline in both states. A chosen catalogue, never hundreds of
