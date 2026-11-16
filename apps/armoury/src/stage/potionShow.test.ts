@@ -151,7 +151,12 @@ describe('the potion show', () => {
 })
 
 describe('the potion show as the stage plays it', () => {
-  const drawn = (player: PotionShowPlayer, from: number, to: number, restMix: (t: number) => number) =>
+  const drawn = (
+    player: PotionShowPlayer,
+    from: number,
+    to: number,
+    restMix: (t: number) => number,
+  ) =>
     Array.from({ length: Math.round((to - from) / FRAME) }, (_, i) => {
       const t = from + i * FRAME
       return { t, show: player.draw(t, restMix(t)) }
@@ -210,6 +215,16 @@ describe('the potion show as the stage plays it', () => {
     const after = drawn(player, 101, 102, () => 0)
     expectSmooth([...before, ...after])
     expect(after[after.length - 1]!.show).toEqual(showRest(1))
+  })
+
+  it('never unwinds the vortex as it is put back mid-swirl', () => {
+    const player = new PotionShowPlayer()
+    player.play(100, FIRST)
+    const mid = drawn(player, 100, 101, () => 0).at(-1)!.show
+    expect(mid.swirl).toBeGreaterThan(0.5)
+    player.leave(101)
+    for (const { show } of drawn(player, 101, 101.5, () => 0))
+      if (show.swirl > 0) expect(show.spin).toBeGreaterThanOrEqual(mid.spin)
   })
 
   it('leaves at once under reduced motion, and leaves a rattle unmixed', () => {

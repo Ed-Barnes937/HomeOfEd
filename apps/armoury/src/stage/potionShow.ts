@@ -84,7 +84,8 @@ const smoothstep = (t: number) => {
 const easeOutCubic = (t: number) => 1 - (1 - Math.min(Math.max(t, 0), 1)) ** 3
 const between = (t: number, from: number, to: number) => (t - from) / (to - from)
 
-const reducedSeconds = () => MIX_REVEAL_SECONDS_REDUCED + REDUCED.fade + REDUCED.hold + REDUCED.fadeOut
+const reducedSeconds = () =>
+  MIX_REVEAL_SECONDS_REDUCED + REDUCED.fade + REDUCED.hold + REDUCED.fadeOut
 
 /** How long a show lasts: the upright hold's length too. */
 export function showSeconds({ full, reducedMotion }: Pick<ShowOptions, 'full' | 'reducedMotion'>) {
@@ -117,7 +118,10 @@ function stopper(t: number): Pick<PotionShow, 'stopperLift' | 'stopperTurn'> {
   if (t < b.settle) {
     const popped = WORK + (STOPPER_OUT - WORK) * easeOutCubic((t - b.pop) / POP_SECONDS)
     const bob = 0.04 * Math.sin((2 * Math.PI * (t - b.pop)) / ((b.settle - b.pop) / 2))
-    return { stopperLift: popped + bob * smoothstep((t - b.pop) / POP_SECONDS), stopperTurn: STOPPER_TURN }
+    return {
+      stopperLift: popped + bob * smoothstep((t - b.pop) / POP_SECONDS),
+      stopperTurn: STOPPER_TURN,
+    }
   }
   const back = 1 - smoothstep(between(t, b.settle, b.sink))
   return { stopperLift: STOPPER_OUT * back, stopperTurn: STOPPER_TURN * back }
@@ -205,9 +209,12 @@ export class PotionShowPlayer {
     const t = now - this.start
     if (leftAt === null && t >= showSeconds(options)) return showRest(restMix)
     let show = potionShow(t, options)
-    if (from && !options.reducedMotion) show = blendShow(from, show, smoothstep(t / RESTART_SECONDS))
+    if (from && !options.reducedMotion)
+      show = blendShow(from, show, smoothstep(t / RESTART_SECONDS))
     if (leftAt === null) return show
     const rest = showRest(options.full ? 1 : restMix)
-    return blendShow(show, rest, options.reducedMotion ? 1 : smoothstep((now - leftAt) / LEAVE_SECONDS))
+    const w = options.reducedMotion ? 1 : smoothstep((now - leftAt) / LEAVE_SECONDS)
+    // The vortex fades where it has turned to, never unwinding.
+    return w < 1 ? blendShow(show, { ...rest, spin: show.spin }, w) : rest
   }
 }
