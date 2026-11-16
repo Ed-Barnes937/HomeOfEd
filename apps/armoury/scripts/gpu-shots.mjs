@@ -71,8 +71,8 @@ const TAP_SLOP_PX = 6
 const LEAN_MAX = 60
 const TIP_MAX = 45
 const SOFT = 10
-// The arrival flourish holds the bottle upright for 4 s, easing out over the last 0.3.
-const FLOURISH_OVER_SECONDS = 4.3
+// The arrival show holds the bottle upright for its length, which the stage's probe publishes, easing out over 0.3 s.
+const FLOURISH_EASE_SECONDS = 0.3
 const POSE_TOLERANCE = 1.5
 const aimAt = (deg, max) => Math.sign(deg) * Math.min(Math.abs(deg), max - 1)
 const RADIANS = Math.PI / 180
@@ -294,7 +294,12 @@ try {
             p
               ? `lean ${p.lean.toFixed(1)} tip ${p.tip.toFixed(1)} (tilt ${p.tilt.toFixed(1)}), wobble ${p.wobble.toFixed(2)} (lean ${p.wobbleLean.toFixed(2)}, tip ${p.wobbleTip.toFixed(2)})`
               : 'no pose published'
-          const dragFrom = early ?? FLOURISH_OVER_SECONDS
+          const showSeconds = await page.evaluate(() => globalThis.flourishSeconds ?? null)
+          if (drags.length && early === null && showSeconds === null)
+            throw new Error(
+              `${name} ${view.tag}: the stage published no show length (a dev server?)`,
+            )
+          const dragFrom = early ?? showSeconds + FLOURISH_EASE_SECONDS
           if (drags.length) {
             const waitFrom = Date.now()
             await page
