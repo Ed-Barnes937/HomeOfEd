@@ -26,7 +26,7 @@ const WORK = 0.15
 export const STOPPER_OUT = 1.3
 const POP_SECONDS = 0.2
 const STOPPER_TURN = Math.PI / 2
-const RATTLE = { seconds: 0.4, lift: 0.05, turn: 0.08, hops: 7.5, wiggles: 5 }
+const RATTLE = { seconds: 0.4, lift: 0.095, turn: 0.18, hops: 7.5, wiggles: 5 }
 const REDUCED = { fade: 0.3, hold: 1.2, fadeOut: 0.5 }
 /** A restart eases from what was drawn into the new show; a put-back eases the show to rest. */
 const RESTART_SECONDS = 0.3

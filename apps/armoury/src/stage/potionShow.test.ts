@@ -114,7 +114,8 @@ describe('the potion show', () => {
 
   it('only rattles the stopper in its seat with fewer than three, for 0.4 s', () => {
     const run = frames(RATTLE)
-    expect(run.some(({ show }) => show.stopperLift > 0)).toBe(true)
+    expect(Math.max(...run.map(({ show }) => show.stopperLift))).toBeGreaterThan(0.08)
+    expect(Math.max(...run.map(({ show }) => Math.abs(show.stopperTurn)))).toBeGreaterThan(0.12)
     for (const { t, show } of run) {
       expect(show.lift).toBe(0)
       expect(show.swirl).toBe(0)
