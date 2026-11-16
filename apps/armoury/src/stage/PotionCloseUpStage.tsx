@@ -119,7 +119,7 @@ const ASIDE = { neckRadii: 2.6, plusMm: 3, lean: 0.4 }
 const ASIDE_LEAN = 0.12
 
 /** Scratch for swinging the stopper aside, and where it last swung. */
-const asideWork = () => ({
+export const asideWork = () => ({
   stopper: null as THREE.Object3D | null,
   side: 1,
   popped: false,
@@ -135,7 +135,7 @@ const asideWork = () => ({
  * Swings the popped stopper `aside` (0 to 1) of the neck across the screen, leaning out, so the
  * effect has the neck's axis to itself: to the right, or to the upper side of a bottle that leans.
  */
-function swingStopper(
+export function swingStopper(
   w: ReturnType<typeof asideWork>,
   bottle: THREE.Object3D | null,
   show: PotionShow,
