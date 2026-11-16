@@ -315,11 +315,14 @@ with the stage and the pop compiles and builds nothing. During the effect a fram
 
 - The frame of the pop (production build under `vite preview`, phone 390x844 at DPR 3, 4x CPU
   throttle, ticket 23's `flip-prod.mjs`: the longest frame from the reveal to 300 ms after it).
-  The display is 120 Hz, so the figure moves in steps of 8.3 ms. Before, on the day's machine:
-  two refreshes (15.8 to 17.5 ms) in 11 of 14 runs and three (24.1 to 25.8 ms) in 3. After: two
-  (15.6 to 17.9 ms) in 28 of 30 runs and three (24.7 and 24.9 ms) in 2, over first mixes into
-  dreamy, sparkling (280 points), whirling (280) and floating. No frame over 25 ms anywhere in
-  the effect.
+  The display is 120 Hz, so the figure moves in steps of 8.3 ms, and the machine was shared, so
+  it is noisy. Before: two refreshes (15.8 to 17.7 ms) in 18 of 23 runs and three (24.1 to
+  25.8 ms) in 5. After: two (15.6 to 17.9 ms) in 40 of 45 runs and three (24.1 to 25.2 ms) in 5,
+  over first mixes into dreamy, sparkling (280 points), whirling (280) and floating. No
+  difference can be shown: the reveal's frame sits on the edge between two refreshes and three,
+  with the effect or without. Five more runs, at 100 ms a frame from their first frame, were
+  taken while another application had the GPU and are not counted; one run before and one after
+  each lost about 60 frames to the same thing. No other run has a frame over 25.2 ms in the effect.
 - Frame interval with vsync off (ticket 14's method, phone size, medians of five): during the
   effect 1.83 to 2.29 ms across the seven kinds, against 1.82 to 2.23 ms for the same bottles at
   rest after it: under 0.1 ms.
