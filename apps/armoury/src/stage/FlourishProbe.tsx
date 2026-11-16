@@ -7,6 +7,8 @@ export const PROBE = import.meta.env.DEV
 
 interface Probe {
   sinceFlourish?: number | null
+  /** How long the item's own flourish lasts, when it has one. */
+  flourishSeconds?: number | null
   /** Set by the shots script: the moment, in seconds into the flourish, to hold at. */
   holdFlourishAt?: number | null
   /** The moment the stage is held at, once that frame is drawn. */
@@ -19,7 +21,7 @@ interface Probe {
   heldMotionAt?: number | null
 }
 
-export function FlourishProbe({ at }: { at: number | null }) {
+export function FlourishProbe({ at, seconds }: { at: number | null; seconds?: number }) {
   const get = useThree((state) => state.get)
   useEffect(() => {
     const probe = window as Window & Probe
@@ -57,6 +59,7 @@ export function FlourishProbe({ at }: { at: number | null }) {
       stopAfterThisFrame(() => (probe.heldMotionAt = held))
     }
     probe.sinceFlourish = at === null ? null : clock.elapsedTime - at
+    probe.flourishSeconds = seconds ?? null
     probe.motionClock = motion.current
   }, -1)
   return null

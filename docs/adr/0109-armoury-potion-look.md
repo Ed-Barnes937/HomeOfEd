@@ -68,10 +68,11 @@ had been ignored): its reflections are fainter than round 1's.
 **Glass tints.** Clear is G1. Sea, amber and violet lean what the glass lets through towards
 their `GLASS_TINTS` colour (about 40 percent), take that colour into the edge and the rim, and
 add a faint body colour at the edges, so the tint shows over the dark room as well as over the
-liquid; smoky's factor is about half. None is cut. The tint pass multiplies the framebuffer,
+liquid; smoky's factor is about 0.62. None is cut. The tint pass multiplies the framebuffer,
 which holds sRGB-encoded colour, so its factors are not linear multipliers of light: smoky's
-half of the encoded value is about a quarter of the light, and the tints come out a little more
-saturated than their hex. The factors were tuned by eye on that basis and stay as they are.
+0.62 of the encoded value is about a third of the light, and the tints come out a little more
+saturated than their hex. The factors were tuned by eye on that basis; smoky's was about half
+until ticket 23's gate, where a murky mix behind it read as a black bottle (ADR 0111).
 
 **The liquid.** Ticket 09's level-plane cut, banding by the plane `dot(p, u) = h` in the
 bottle's millimetre frame (never `aHeight`), kept. Front faces are the liquid's skin; back faces

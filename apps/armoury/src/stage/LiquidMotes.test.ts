@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { normalise } from '../engine/schema.ts'
 import { compilePotion } from '../potion/compile.ts'
 import { bottleProfile, LIQUID_GAP_MM } from '../potion/profile.ts'
-import { potionSchema } from '../potion/potionSchema.ts'
+import { MAX_POURS, potionSchema } from '../potion/potionSchema.ts'
 import { withPours } from '../potion/pours.ts'
 import {
   BUBBLE_FADE_IN,
@@ -14,7 +14,11 @@ import {
   cavityRadii,
   MAX_MOTES,
   MOTE_PROGRAMS,
+  MOTE_TURN,
   motePool,
+  SPECK_FADE,
+  SPECK_SPEED,
+  TRAIT_LOOKS,
 } from '../potion/traits.ts'
 import { createMotes, MOTE_RADII, motesGeometry } from './LiquidMotes.tsx'
 import { createLiquid } from './potionMaterials.ts'
@@ -23,7 +27,18 @@ describe("the liquid's motes", () => {
   it("run on the liquid's own clock and bands, so reduced motion and a frozen shot hold them", () => {
     const liquid = createLiquid()
     const motes = createMotes(liquid.uniforms)
-    for (const name of ['uTime', 'uUp', 'uLevels', 'uEdges', 'uCount', 'uFloor', 'uColour', 'uCap'])
+    for (const name of [
+      'uTime',
+      'uUp',
+      'uLevels',
+      'uEdges',
+      'uCount',
+      'uFloor',
+      'uColour',
+      'uCap',
+      'uMix',
+      'uMixColour',
+    ])
       expect(motes.uniforms[name], name).toBe(liquid.uniforms[name])
     expect(motes.material.vertexShader).not.toMatch(/performance|Date/)
     motes.dispose()
@@ -35,7 +50,7 @@ describe("the liquid's motes", () => {
     const g = (v: number) => v.toFixed(4)
     const vertex = motes.material.vertexShader
     expect(vertex).toContain(
-      `fract(aSeed.y + t * (${g(BUBBLE_SPEED.base)} + ${g(BUBBLE_SPEED.spread)} * aSeed.z) / uRise)`,
+      `fract(aSeed.y + t * (${g(BUBBLE_SPEED.base)} + ${g(BUBBLE_SPEED.spread)} * aSeed.z) / riseMm)`,
     )
     expect(vertex).toContain(
       `${g(BUBBLE_SWAY.mm)} * sin(t * ${g(BUBBLE_SWAY.rate)} + aSeed.w * ${g(BUBBLE_SWAY.phase)}) * rise`,
@@ -69,6 +84,43 @@ describe("the liquid's motes", () => {
     motes.setLayers([{ colour: '#c7b2f0', trait: 'cloud', ingredient: 'moonmilk' }])
     expect(u.uKind.value).toEqual([0, 0, 0])
     expect(u.uDensity.value).toEqual([0, 0, 0])
+    motes.dispose()
+  })
+
+  it("give the mix its trait's program over the whole liquid, timed on a full bottle's height", () => {
+    const motes = createMotes(createLiquid().uniforms)
+    const u = motes.uniforms
+    expect([u.uMixKind.value, u.uMixDensity.value]).toEqual([0, 0])
+    motes.setMixed({ colour: '#655e40', trait: 'murk', ingredient: null })
+    expect(u.uMixKind.value).toBe(MOTE_PROGRAMS.speck.code)
+    expect(u.uMixDensity.value).toBe(MOTE_PROGRAMS.speck.density)
+    expect(u.uMixTint.value.toArray()).toEqual(new THREE.Color(TRAIT_LOOKS.murk.tint!).toArray())
+    motes.setMixed({ colour: '#65d286', trait: 'fizz', ingredient: 'frogfizz' })
+    expect(u.uMixKind.value).toBe(MOTE_PROGRAMS.bubble.code)
+    motes.setMixed(null)
+    expect([u.uMixKind.value, u.uMixDensity.value]).toEqual([0, 0])
+    const vertex = motes.material.vertexShader
+    expect(vertex).toContain(`riseMm = uRise * ${MAX_POURS}.0;`)
+    expect(vertex).toContain('lo = uFloor;')
+    expect(vertex).toContain('hi = uLevels[uCount - 1];')
+    motes.dispose()
+  })
+
+  it("change each mote over, and sink a murk's specks, by the numbers their twins use", () => {
+    const motes = createMotes(createLiquid().uniforms)
+    const g = (v: number) => v.toFixed(4)
+    const vertex = motes.material.vertexShader
+    expect(vertex).toContain(
+      `float turnAt = ${g(MOTE_TURN.from)} + ${g(MOTE_TURN.span)} * fract(aSeed.w * 13.0 + aSeed.y * 7.0);`,
+    )
+    expect(vertex).toContain(`smoothstep(0.0, ${g(MOTE_TURN.fade)}, abs(uMix - turnAt))`)
+    expect(vertex).toContain(
+      `fract(aSeed.y + t * (${g(SPECK_SPEED.base)} + ${g(SPECK_SPEED.spread)} * aSeed.z) / riseMm)`,
+    )
+    expect(vertex).toContain(
+      `smoothstep(0.0, ${g(SPECK_FADE.in)}, fall) * (1.0 - smoothstep(${g(SPECK_FADE.out)}, 1.0, fall))`,
+    )
+    expect(vertex).not.toMatch(/\bt\s*\*[^;]*\b(uLevels|uUp|uEdges|hi|lo|span)\b/)
     motes.dispose()
   })
 

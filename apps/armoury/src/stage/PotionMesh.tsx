@@ -20,6 +20,7 @@ import {
   LABEL_LOOKS,
   labelArea,
   labelMaterial,
+  type LayerLook,
   LIQUID,
   type LiquidClock,
   PAPERS,
@@ -111,6 +112,55 @@ export function liquidTops(
   return s.levels ?? liquidLevels(u, s.built.upright, work.table, work.levels)
 }
 
+/** How mixed the liquid is drawn, how strongly its vortex winds and how far that has turned (`Liquid.setMix`). */
+export interface LiquidMix {
+  mix: number
+  swirl: number
+  spin: number
+}
+
+const LAYERED: LiquidMix = { mix: 0, swirl: 0, spin: 0 }
+const MIXED: LiquidMix = { mix: 1, swirl: 0, spin: 0 }
+
+/** The mix as drawn: a show's while one is given, else the spec's at rest. */
+export function mixDrawn(
+  spec: Pick<PotionSpec, 'mixed'>,
+  show?: { readonly current: LiquidMix },
+): LiquidMix {
+  return show ? show.current : spec.mixed ? MIXED : LAYERED
+}
+
+/** Whether two specs ask for one build: the same bottle holding the same liquid, whatever `mixed` says. */
+export function sameBuild(a: PotionSpec, b: PotionSpec): boolean {
+  return (
+    a === b || JSON.stringify({ ...a, mixed: false }) === JSON.stringify({ ...b, mixed: false })
+  )
+}
+
+/** The spec a built bottle is drawn as: the latest while it asks for this build, else as last shown, so `mixed` neither waits for a rebuild nor runs ahead of one. */
+export function shownSpec(shown: PotionSpec, built: PotionSpec, latest: PotionSpec): PotionSpec {
+  if (sameBuild(built, latest)) return latest
+  return sameBuild(built, shown) ? shown : built
+}
+
+/** The one liquid a spec's layers mix into, once three are in. */
+export function mixLook({ mix }: Pick<PotionSpec, 'mix'>): LayerLook | null {
+  return mix ? { colour: mix.colour, trait: mix.trait, ingredient: mix.main } : null
+}
+
+type Held = number | { readonly current: number }
+const held = (v: Held) => (typeof v === 'number' ? v : v.current)
+
+/** Draws the stopper `lift` mm up its axis, turned `turn` radians about it. */
+export function poseStopper(stopper: THREE.Object3D, lift: Held, turn: Held = 0): void {
+  const z = held(lift)
+  const about = held(turn)
+  if (stopper.position.z === z && stopper.rotation.z === about) return
+  stopper.position.z = z
+  stopper.rotation.z = about
+  stopper.updateMatrixWorld()
+}
+
 export interface PotionGeometries {
   glass: THREE.BufferGeometry
   liquid: THREE.BufferGeometry
@@ -164,12 +214,12 @@ function buildAll({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built {
   }
 }
 
-/** The mesh for `spec`: built at once the first time, then at most once a frame, from the latest spec. */
+/** The mesh for `spec`: built at once the first time, then at most once a frame, from the latest spec that asks for another build. */
 function usePotionBuild(spec: PotionSpec, tips: boolean): Built {
   const [built, setBuilt] = useState(() => buildAll({ spec, tips }))
   const [builder] = useState(() => latestOnly(buildAll, setBuilt))
   useEffect(() => {
-    if (built.spec !== spec || (tips && !built.table)) builder.request({ spec, tips })
+    if (!sameBuild(built.spec, spec) || (tips && !built.table)) builder.request({ spec, tips })
   }, [spec, tips, built, builder])
   useEffect(() => () => builder.cancel(), [builder])
   return built
@@ -280,6 +330,12 @@ export interface PotionMeshProps {
   spec: PotionSpec
   /** How far the stopper is drawn up out of the bore along the axis, mm; 0 seated. A `{ current }` holder is read as the stopper is drawn, so it can move with no render. */
   stopperLift?: number | { readonly current: number }
+  /** The stopper's turn about the axis, radians; a number or a holder, as its lift. */
+  stopperTurn?: number | { readonly current: number }
+  /** A show's mix, read as the liquid is drawn. By default, the spec's at rest: its layers, or the mix once mixed. */
+  mix?: { readonly current: LiquidMix }
+  /** The spec as the page last rendered it, read as the liquid is drawn: the canvas renders a task behind the page. By default, `spec`. */
+  latest?: { readonly current: PotionSpec }
   /** Each band's top `h`, mm, bottom first; read every frame. By default, the levels for the surface's up. */
   levels?: number[]
   /** The surface's up as a direction in the up frame (`upFrom`, or the scene); read every frame. By default, +y: level. */
@@ -348,7 +404,8 @@ function useLabelInk(spec: PotionSpec, part: PotionParts['label'], name: string,
       texture.needsUpdate = true
     }
     draw()
-    void document.fonts?.load('64px "IM Fell English"').then(() => live && draw())
+    const font = '64px "IM Fell English"'
+    if (!document.fonts?.check(font)) void document.fonts?.load(font).then(() => live && draw())
     return () => {
       live = false
     }
@@ -373,7 +430,9 @@ function useGlassLook(spec: PotionSpec, built: Built) {
   const top = useMemo(() => heightRange(built.parts.liquid)[1], [built])
   useLayoutEffect(() => {
     liquid.setLayers(built.spec.layers)
+    liquid.setMixed(mixLook(built.spec))
     motes.setLayers(built.spec.layers)
+    motes.setMixed(mixLook(built.spec))
     motes.setCavity(built.cavity)
   }, [liquid, motes, built])
   useLayoutEffect(() => {
@@ -399,11 +458,14 @@ export function PotionMesh(props: PotionMeshProps) {
   return CLAY ? <ClayBottle {...props} /> : <GlassBottle {...props} />
 }
 
-/** The per-frame surface: each band's top for the bottle as posed, and the stopper's lift. */
+/** The per-frame surface: each band's top for the bottle as posed, the stopper's pose and the liquid's mix. */
 function useSurface(props: PotionMeshProps, built: Built) {
-  const { levels, surfaceNormal, upFrom, stopperLift = 0 } = props
-  const surface = useRef({ built, levels, surfaceNormal, upFrom, stopperLift })
-  surface.current = { built, levels, surfaceNormal, upFrom, stopperLift }
+  const { levels, surfaceNormal, upFrom, stopperLift = 0, stopperTurn = 0, mix } = props
+  const surface = useRef({ built, levels, surfaceNormal, upFrom, stopperLift, stopperTurn, mix })
+  surface.current = { built, levels, surfaceNormal, upFrom, stopperLift, stopperTurn, mix }
+  const page = useRef({ spec: props.spec, latest: props.latest })
+  page.current = { spec: props.spec, latest: props.latest }
+  const shown = useRef({ spec: built.spec, built: built.spec, latest: built.spec })
   const work = useMemo(() => {
     const lazy = { spec: null as PotionSpec | null, table: null as LevelTable | null }
     return {
@@ -426,14 +488,17 @@ function useSurface(props: PotionMeshProps, built: Built) {
     }
   }, [])
   const tops = (liquid: THREE.Object3D) => liquidTops(liquid, surface.current, work)
-  const drawStopper = (stopper: THREE.Object3D) => {
-    const lift = surface.current.stopperLift
-    const z = typeof lift === 'number' ? lift : lift.current
-    if (stopper.position.z === z) return
-    stopper.position.z = z
-    stopper.updateMatrixWorld()
+  const drawStopper = (stopper: THREE.Object3D) =>
+    poseStopper(stopper, surface.current.stopperLift, surface.current.stopperTurn)
+  const mixNow = () => {
+    const { built, mix } = surface.current
+    const latest = page.current.latest?.current ?? page.current.spec
+    const was = shown.current
+    if (was.built !== built.spec || was.latest !== latest)
+      shown.current = { spec: shownSpec(was.spec, built.spec, latest), built: built.spec, latest }
+    return mixDrawn(shown.current.spec, mix)
   }
-  return { work, tops, drawStopper }
+  return { work, tops, drawStopper, mixNow }
 }
 
 type BeforeRender = THREE.Object3D['onBeforeRender']
@@ -450,7 +515,7 @@ function GlassBottle(props: PotionMeshProps) {
     props.label?.name ?? '',
     props.label?.gold ?? false,
   )
-  const { work, tops, drawStopper } = useSurface(props, built)
+  const { work, tops, drawStopper, mixNow } = useSurface(props, built)
   useFrame(() => {
     look.liquid.uniforms.uTime.value = clock?.time ?? 0
   })
@@ -459,6 +524,8 @@ function GlassBottle(props: PotionMeshProps) {
   const liquidSurface: BeforeRender = function (this: THREE.Object3D, _r, _s, camera) {
     const levels = tops(this)
     liquid.setSurface(work.u, levels, work.floor)
+    const { mix, swirl, spin } = mixNow()
+    liquid.setMix(mix, swirl, spin)
     eyeIn(this, camera, liquid.uniforms.uEye.value)
   }
   const stopperPose: BeforeRender = function (this: THREE.Object3D) {

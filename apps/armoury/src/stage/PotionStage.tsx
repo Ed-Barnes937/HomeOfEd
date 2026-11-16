@@ -59,6 +59,8 @@ export default function PotionStage({ params, reducedMotion, name, ref }: StageP
     () => ({ name: name ?? potionName(params), gold: isGold(params) }),
     [name, params],
   )
+  const latest = useRef(spec)
+  latest.current = spec
   const glow = useRef(potionGlowColour(params))
   glow.current = potionGlowColour(params)
   const clock = useLiquidClock(reducedMotion)
@@ -79,7 +81,7 @@ export default function PotionStage({ params, reducedMotion, name, ref }: StageP
         <Framing halfWidth={POTION_HALF_WIDTH} view="front" />
         <Roller target={rollTarget} axis="y">
           <group position={[0, boxCentreY(spec), 0]}>
-            <PotionMesh spec={spec} clock={clock} label={label} />
+            <PotionMesh spec={spec} latest={latest} clock={clock} label={label} />
           </group>
         </Roller>
         {CLAY ? (

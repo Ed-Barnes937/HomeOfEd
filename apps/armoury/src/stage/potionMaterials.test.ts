@@ -10,6 +10,7 @@ import { normalise } from '../engine/schema.ts'
 import { withPours } from '../potion/pours.ts'
 import { tagLayout } from '../potion/geometry.ts'
 import { INGREDIENTS, type IngredientId, type Trait } from '../potion/ingredients.ts'
+import { mixPotion, type Recipe } from '../potion/mix.ts'
 import { traitLook } from '../potion/traits.ts'
 import { srgbToLinear } from '../items/colour.ts'
 import { floorAt, levelsAt, levelTable } from '../potion/tipped.ts'
@@ -32,7 +33,10 @@ import {
   softCap,
   STOPPER_LOOKS,
   TRAIT_GAIN,
+  VORTEX,
+  vortexShift,
 } from './potionMaterials.ts'
+import { potionShow, PotionShowPlayer, SHOW_BEATS } from './potionShow.ts'
 
 const TRAITS: Trait[] = ['clear', 'cloud', 'fizz', 'glitter', 'glow', 'swirl', 'murk']
 
@@ -327,6 +331,137 @@ describe('the liquid', () => {
       bandEdges([20, 50, 90], 5, [], 3, [CLOUD_EDGE, 1, 1]),
     )
     liquid.dispose()
+  })
+})
+
+describe("the liquid's mix", () => {
+  const RECIPES = INGREDIENTS.flatMap((a) =>
+    INGREDIENTS.flatMap((b) => INGREDIENTS.map((c) => [a.id, b.id, c.id] as unknown as Recipe)),
+  )
+
+  it('is written into uniforms both passes hold, in place', () => {
+    const liquid = createLiquid()
+    const u = liquid.uniforms
+    const held = [u.uMix, u.uVortex, u.uSpin]
+    expect([u.uMix.value, u.uVortex.value, u.uSpin.value]).toEqual([0, 0, 0])
+    liquid.setMix(0.4, 0.8, 2.5)
+    expect([u.uMix.value, u.uVortex.value, u.uSpin.value]).toEqual([0.4, 0.8, 2.5])
+    liquid.setMix(1, 0)
+    expect([u.uMix.value, u.uVortex.value, u.uSpin.value]).toEqual([1, 0, 0])
+    for (const pass of [liquid.surface, liquid.body]) {
+      const shader = compiled(pass)
+      expect([shader.uniforms.uMix, shader.uniforms.uVortex, shader.uniforms.uSpin]).toEqual(held)
+      expect(shader.uniforms.uMixColour).toBe(u.uMixColour)
+    }
+    liquid.dispose()
+  })
+
+  it("takes the mix's colour and trait, its main ingredient's variant with it, beside the layers", () => {
+    const liquid = createLiquid()
+    const u = liquid.uniforms
+    liquid.setLayers([{ colour: '#f0892a', trait: 'glow' }])
+    liquid.setMixed({ colour: '#7d6cc9', trait: 'glitter', ingredient: 'thundercloud' })
+    expect(u.uMixColour.value.toArray()).toEqual(srgbToLinear('#7d6cc9'))
+    expect([u.uMixFleck.value, u.uMixGlow.value, u.uMixCloud.value]).toEqual([1, 0, 0])
+    const silver = u.uMixFleckTint.value.toArray()
+    expect(Math.max(...silver) - Math.min(...silver)).toBeLessThan(0.25)
+    expect(u.uGlow.value[0]).toBe(1)
+    liquid.setMixed({ colour: '#655e40', trait: 'murk', ingredient: null })
+    expect([u.uMixFleck.value, u.uMixCloud.value]).toEqual([0, traitLook('murk').shading.cloud])
+    liquid.setMixed({ colour: '#cd94e2', trait: 'swirl', ingredient: 'snailshine' })
+    expect([u.uMixSwirl.value, u.uMixPearl.value, u.uMixCling.value]).toEqual([1, 1, 0])
+    liquid.setMixed(null)
+    expect([u.uMixSwirl.value, u.uMixPearl.value, u.uMixCloud.value]).toEqual([0, 0, 0])
+    liquid.dispose()
+  })
+
+  it('blends the colour and every trait towards the mix by one weight, the bands read through the vortex', () => {
+    const fragment = compiled(createLiquid().body).fragmentShader
+    expect(fragment).toContain('vec3 liqLayered = potionBand(liqBandH, liqTraits);')
+    expect(fragment).toMatch(
+      /liqTraits = potionTraitsMix\(liqTraits, PotionTraits\(uMixCloud, .*uMixCling\), liqMixed\);/,
+    )
+    expect(fragment).toContain('mix(liqLayered, uMixColour, liqMixed)')
+    expect(fragment).toContain('if (uVortex > 0.0) {')
+  })
+
+  it('keeps the vortex off the page clock, and its numbers the ones its twin uses', () => {
+    const fragment = compiled(createLiquid().body).fragmentShader
+    const from = fragment.indexOf('vec2 potionVortex(')
+    const vortex = fragment.slice(from, fragment.indexOf('\n}', from))
+    const g = (v: number) => v.toFixed(4)
+    expect(vortex).not.toContain('uTime')
+    expect(vortex).toContain(`float a = ${g(VORTEX.pitch)} * h + ${g(VORTEX.radial)} * r - uSpin;`)
+    expect(vortex).toContain(`float lobe = q.x / max(r, ${g(VORTEX.axisMm)});`)
+    expect(vortex).toContain(`uVortex * span * (${g(VORTEX.reach)} * lobe`)
+    const main = fragment.slice(fragment.indexOf('float liqMixed = uMix;'))
+    expect(main.slice(0, main.indexOf('vec3 liqLayered'))).not.toContain('uTime')
+  })
+
+  it('carries nothing at rest and never further than its reach', () => {
+    for (const p of [
+      [12, 0, 30],
+      [0, -9, 55],
+      [0.01, 0, 20],
+      [0, 0, 20],
+    ] as const) {
+      expect(Math.abs(vortexShift(p, p[2], 60, 0, 7))).toBe(0)
+      for (let spin = 0; spin < 13; spin += 0.37)
+        expect(Math.abs(vortexShift(p, p[2], 60, 1, spin))).toBeLessThanOrEqual(
+          60 * VORTEX.reach + 1e-9,
+        )
+    }
+    expect(vortexShift([0, 0, 20], 20, 60, 1, 1)).toBe(0)
+  })
+
+  it('winds smoothly an hour after the page opened, while the surface sloshes', () => {
+    const FRAME = 1 / 60
+    const p = [14, 6, 40] as const
+    const run = (start: number) => {
+      const player = new PotionShowPlayer()
+      player.play(start, { firstMix: true, full: true, reducedMotion: false })
+      return Array.from({ length: Math.round(SHOW_BEATS.pop / FRAME) }, (_, i) => {
+        const t = i * FRAME
+        const show = player.draw(start + t, 0)
+        // A 12 degree slosh, one swing in 0.6 s: the up, the height along it and the liquid's span all move.
+        const lean = ((12 * Math.PI) / 180) * Math.sin((2 * Math.PI * t) / 0.6)
+        const h = p[2] * Math.cos(lean) + p[0] * Math.sin(lean)
+        const span = 60 + 4 * Math.sin((2 * Math.PI * t) / 0.6)
+        return vortexShift(p, h, span, show.swirl, show.spin)
+      })
+    }
+    const late = run(3600)
+    for (let i = 1; i < late.length; i++)
+      expect(Math.abs(late[i]! - late[i - 1]!), `frame ${i}`).toBeLessThan(6.5)
+    const early = run(0)
+    late.forEach((shift, i) => expect(shift).toBeCloseTo(early[i]!, 6))
+    expect(Math.max(...late.map(Math.abs))).toBeGreaterThan(10)
+  })
+
+  it('is fully mixed, the vortex still, before the stopper pops', () => {
+    for (let t = SHOW_BEATS.twist; t <= SHOW_BEATS.pop; t += 1 / 120) {
+      const show = potionShow(t, { firstMix: true, full: true, reducedMotion: false })
+      expect([show.mix, show.swirl]).toEqual([1, 0])
+    }
+  })
+
+  it('keeps the glow from inside under the cap on the brightest glowing mix', () => {
+    const glowing = RECIPES.map(mixPotion).filter(
+      (m) => traitLook(m.trait, m.main).shading.glow > 0,
+    )
+    expect(glowing.length).toBeGreaterThan(0)
+    const peak = Math.max(
+      ...glowing.flatMap((m) =>
+        srgbToLinear(m.colour).map(
+          (c, k) => c * (LIQUID.self + TRAIT_GAIN.glow * TRAIT_GAIN.glowWarm[k]!),
+        ),
+      ),
+    )
+    expect(peak).toBeLessThan(REST_CAP)
+    const fragment = compiled(createLiquid().body).fragmentShader
+    expect(fragment.indexOf('uMixGlow')).toBeLessThan(
+      fragment.indexOf('outgoingLight = potionCap(outgoingLight, uCap);'),
+    )
   })
 })
 

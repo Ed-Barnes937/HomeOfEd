@@ -164,3 +164,32 @@ export function takeFromHold(pose: UprightPose, weight: number): UprightPose {
     tipVelocity: 0,
   }
 }
+
+/** An upright item's pose, and the moment of its flourish the hold comes back from (Infinity while a finger holds it). */
+export interface HeldUpright {
+  upright: UprightPose
+  holdBack: number
+}
+
+export type HoldChange =
+  /** A flourish starts; taken at once if a drag is moving the item. */
+  | { kind: 'flourish'; dragging: boolean }
+  /** A drag past the tap slop moves the item; `weight` is how strongly the hold held it as drawn. */
+  | { kind: 'drag'; dx: number; dy: number; weight: number }
+  /** The last finger lets go, `since` seconds into the flourish. */
+  | { kind: 'release'; since: number }
+
+/** How the hold and a finger hand an upright item over to each other (ADR 0111). */
+export function holdOn(held: HeldUpright, change: HoldChange): HeldUpright {
+  switch (change.kind) {
+    case 'flourish':
+      return { upright: held.upright, holdBack: change.dragging ? Infinity : 0 }
+    case 'drag': {
+      const from =
+        held.holdBack === Infinity ? held.upright : takeFromHold(held.upright, change.weight)
+      return { upright: dragUpright(from, change.dx, change.dy), holdBack: Infinity }
+    }
+    case 'release':
+      return held.holdBack === Infinity ? { upright: held.upright, holdBack: change.since } : held
+  }
+}

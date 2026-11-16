@@ -20,8 +20,7 @@ export interface TraitShading {
   cling: number
 }
 
-/** Ticket 23 adds `speck`, the murk's sinking specks. */
-export type MoteKind = 'fleck' | 'bubble' | 'spore'
+export type MoteKind = 'fleck' | 'bubble' | 'spore' | 'speck'
 
 export interface TraitLook {
   shading: TraitShading
@@ -39,7 +38,7 @@ export const TRAIT_LOOKS: Record<Trait, TraitLook> = {
   glitter: { shading: { ...NONE, fleck: 1 }, motes: 'fleck', tint: '#ffe4a0' },
   glow: { shading: { ...NONE, glow: 1 }, motes: null, tint: null },
   swirl: { shading: { ...NONE, swirl: 1 }, motes: null, tint: null },
-  murk: { shading: { ...NONE, cloud: 1 }, motes: null, tint: null },
+  murk: { shading: { ...NONE, cloud: 0.8 }, motes: 'speck', tint: '#e6d49c' },
 }
 
 /** An ingredient's own take on its trait; dropped if its trait is ever cut to another. */
@@ -71,6 +70,7 @@ export const MOTE_PROGRAMS: Record<MoteKind, MoteProgram> = {
   fleck: { code: 1, density: 1, least: 25 },
   bubble: { code: 2, density: 1, least: 25 },
   spore: { code: 3, density: 0.9, least: 20 },
+  speck: { code: 4, density: 1, least: 20 },
 }
 
 /** Every mote a bottle can show, whatever its layers: one draw. */
@@ -217,6 +217,29 @@ export const BUBBLE_FADE_IN = 0.08
 export const BUBBLE_FADE_OUT = 0.86
 
 const fract = (v: number) => v - Math.floor(v)
+
+/** A murk's speck sinks `base` to `base + spread` mm a second, by its seed. */
+export const SPECK_SPEED = { base: 1.2, spread: 1.4 }
+/** A speck shows from the first `in` of its fall and is gone by the last `1 - out`. */
+export const SPECK_FADE = { in: 0.1, out: 0.85 }
+
+/** How far down its band a speck is, 0 to 1, at time `t`: on a fixed length, as a bubble rises. */
+export function speckFall(seed: Vec3 | readonly number[], t: number, fallMm: number): number {
+  return fract(seed[1] + (t * (SPECK_SPEED.base + SPECK_SPEED.spread * seed[2])) / fallMm)
+}
+
+/** How much shows of a speck `fall` of the way down. */
+export const speckFade = (fall: number) =>
+  smoothstep(0, SPECK_FADE.in, fall) * (1 - smoothstep(SPECK_FADE.out, 1, fall))
+
+/** As the liquid mixes, each mote changes to the mix's program at its own moment from `from` over `span` of the mix, unseen within `fade` of it. */
+export const MOTE_TURN = { from: 0.2, span: 0.6, fade: 0.15 }
+
+/** Whether a mote plays the mix's program yet at `mix` (0 the layers, 1 the mix), and how much of it shows. */
+export function moteTurn(seed: ArrayLike<number>, mix: number): { mixed: boolean; shown: number } {
+  const turnAt = MOTE_TURN.from + MOTE_TURN.span * fract(seed[3]! * 13 + seed[1]! * 7)
+  return { mixed: mix > turnAt, shown: smoothstep(0, MOTE_TURN.fade, Math.abs(mix - turnAt)) }
+}
 
 /** The motes' shader's hash, three numbers in [0, 1) from a point. */
 export function motesHash3(x: number, y: number, z: number): [number, number, number] {

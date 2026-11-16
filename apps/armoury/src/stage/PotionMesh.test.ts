@@ -14,7 +14,19 @@ import { boxCameraPosition } from './boxRig.tsx'
 import { CAMERA_DISTANCE, hitGeometry, uprightScale, type HeldItem } from './HeldRig.tsx'
 import { LEAN_MARGIN, LEAN_MAX, leanShiftMm } from './hold.ts'
 import { potionHeldItem } from './PotionCloseUpStage.tsx'
-import { fillGeometries, liquidLevels, liquidTops, RENDER_ORDER, surfaceUp } from './PotionMesh.tsx'
+import {
+  fillGeometries,
+  liquidLevels,
+  liquidTops,
+  mixDrawn,
+  mixLook,
+  poseStopper,
+  RENDER_ORDER,
+  sameBuild,
+  shownSpec,
+  surfaceUp,
+} from './PotionMesh.tsx'
+import { showSeconds } from './potionShow.ts'
 import { boxCentreY, POTION_HALF_WIDTH } from './potionScene.tsx'
 import { FOV, MM } from './scene.tsx'
 
@@ -251,7 +263,130 @@ describe('the liquid as it is drawn, on a posed scene graph', () => {
   })
 })
 
+describe('the mixed liquid as it is drawn', () => {
+  const three = withPours(['moonmilk', 'rosehip', 'starpetal'])
+
+  test("at rest it is the spec's: its layers, or the mix once mixed, with no vortex", () => {
+    expect(mixDrawn(potion({ ...three, mixed: 'no' }))).toEqual({ mix: 0, swirl: 0, spin: 0 })
+    expect(mixDrawn(potion({ ...three, mixed: 'yes' }))).toEqual({ mix: 1, swirl: 0, spin: 0 })
+    expect(mixDrawn(potion({ ...withPours(['moonmilk']), mixed: 'yes' })).mix).toBe(0)
+  })
+
+  test('a show playing wins over the spec, read from its holder as it is drawn', () => {
+    const show = { current: { mix: 0.4, swirl: 0.9, spin: 3 } }
+    expect(mixDrawn(potion({ ...three, mixed: 'yes' }), show)).toBe(show.current)
+    show.current = { mix: 1, swirl: 0, spin: 0 }
+    expect(mixDrawn(potion({ ...three, mixed: 'no' }), show)).toBe(show.current)
+  })
+
+  test("the mix's look is its colour, its trait and its main ingredient, as soon as three are in", () => {
+    const spec = potion({ ...three, mixed: 'no' })
+    expect(mixLook(spec)).toEqual({
+      colour: spec.mix!.colour,
+      trait: spec.mix!.trait,
+      ingredient: spec.mix!.main,
+    })
+    expect(mixLook(potion(withPours(['frogfizz', 'rosehip'])))).toBeNull()
+    const murky = potion(withPours(['emberroot', 'snailshine', 'moonmilk']))
+    expect(mixLook(murky)).toMatchObject({ trait: 'murk', ingredient: null })
+  })
+})
+
+describe('the build a spec asks for', () => {
+  const three = withPours(['moonmilk', 'rosehip', 'starpetal'])
+  const layered = potion({ ...three, mixed: 'no' })
+
+  test('is the same one when only mixed differs, so the reveal rebuilds nothing', () => {
+    expect(sameBuild(layered, layered)).toBe(true)
+    expect(sameBuild(layered, potion({ ...three, mixed: 'no' }))).toBe(true)
+    expect(sameBuild(layered, potion({ ...three, mixed: 'yes' }))).toBe(true)
+    expect(sameBuild(potion({ ...three, mixed: 'yes' }), layered)).toBe(true)
+  })
+
+  test('is another one when the bottle or what is in it differs', () => {
+    const others: Params[] = [
+      { ...three, shape: 'gourd' },
+      { ...three, neck: 0.9 },
+      { ...three, glass: 'sea' },
+      { ...three, stopper: 'glass' },
+      { ...three, label: 'banner' },
+      withPours(['moonmilk', 'rosehip']),
+      withPours(['moonmilk', 'rosehip', 'frogfizz']),
+      withPours(['rosehip', 'moonmilk', 'starpetal']),
+      withPours([]),
+    ]
+    for (const values of others)
+      expect(sameBuild(layered, potion({ mixed: 'yes', ...values })), JSON.stringify(values)).toBe(
+        false,
+      )
+  })
+})
+
+describe('the spec a built bottle is drawn as, the build a frame or two behind the latest spec', () => {
+  const three = withPours(['moonmilk', 'rosehip', 'starpetal'])
+  const layered = potion({ ...three, mixed: 'no' })
+  const mixed = potion({ ...three, mixed: 'yes' })
+  const empty = potion(withPours([]))
+
+  test('a bottle that turns mixed is drawn mixed at once, with no rebuild, and one put back to its layers is layered at once', () => {
+    expect(shownSpec(layered, layered, mixed)).toBe(mixed)
+    expect(shownSpec(mixed, mixed, layered)).toBe(layered)
+    expect(shownSpec(mixed, layered, mixed).mixed).toBe(true)
+  })
+
+  test('an emptied bottle keeps drawing the mix until the empty one is built, though it was built before it mixed', () => {
+    expect(shownSpec(mixed, mixed, empty).mixed).toBe(true)
+    expect(shownSpec(mixed, layered, empty).mixed).toBe(true)
+    expect(shownSpec(mixed, empty, empty)).toBe(empty)
+  })
+
+  test("a new recipe keeps the built one's state until it is built, then takes its own", () => {
+    const other = withPours(['frogfizz', 'frogfizz', 'snailshine'])
+    const next = potion({ ...other, mixed: 'yes' })
+    expect(shownSpec(layered, layered, next).mixed).toBe(false)
+    expect(shownSpec(mixed, layered, potion({ ...other, mixed: 'no' })).mixed).toBe(true)
+    expect(shownSpec(layered, next, next)).toBe(next)
+    expect(shownSpec(layered, next, empty)).toBe(next)
+  })
+})
+
+describe('the stopper as it is drawn', () => {
+  test('rises along the axis and turns about it, from numbers or holders, and only updates when it moves', () => {
+    const stopper = new THREE.Mesh()
+    const updated = vi.spyOn(stopper, 'updateMatrixWorld')
+    poseStopper(stopper, 0, 0)
+    expect(updated).not.toHaveBeenCalled()
+    const lift = { current: 4 }
+    const turn = { current: 0.5 }
+    poseStopper(stopper, lift, turn)
+    expect([stopper.position.z, stopper.rotation.z]).toEqual([4, 0.5])
+    expect(updated).toHaveBeenCalledTimes(1)
+    poseStopper(stopper, lift, turn)
+    expect(updated).toHaveBeenCalledTimes(1)
+    turn.current = 0.6
+    poseStopper(stopper, lift, turn)
+    expect(stopper.rotation.z).toBe(0.6)
+    poseStopper(stopper, 2)
+    expect([stopper.position.z, stopper.rotation.z]).toEqual([2, 0])
+  })
+})
+
 describe('the held bottle', () => {
+  test('is held upright for as long as its show lasts', () => {
+    const full = potion(withPours(['moonmilk', 'rosehip', 'starpetal']))
+    const two = potion(withPours(['frogfizz', 'rosehip']))
+    expect(potionHeldItem(full).flourishSeconds).toBe(
+      showSeconds({ full: true, reducedMotion: false }),
+    )
+    expect(potionHeldItem(full, true).flourishSeconds).toBe(
+      showSeconds({ full: true, reducedMotion: true }),
+    )
+    expect(potionHeldItem(two).flourishSeconds).toBe(
+      showSeconds({ full: false, reducedMotion: false }),
+    )
+    expect(potionHeldItem(full).flourishSeconds).toBeGreaterThan(5)
+  })
+
   test('a tap beside it misses it, however far it has turned about its axis', () => {
     const ray = new THREE.Raycaster()
     for (const shape of SHAPES)
