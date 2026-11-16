@@ -14,6 +14,9 @@ import {
   type MoteKind,
   type MotePool,
   MOTE_PROGRAMS,
+  MOTE_TURN,
+  SPECK_FADE,
+  SPECK_SPEED,
   traitLook,
 } from '../potion/traits.ts'
 import { type LayerLook, type LiquidUniforms, SOFT_CAP_GLSL } from './potionMaterials.ts'
@@ -24,19 +27,22 @@ export const MOTE_RADII = 48
 const code = (kind: MoteKind | null) => (kind ? MOTE_PROGRAMS[kind].code : 0)
 const FLECK = MOTE_PROGRAMS.fleck.code
 const BUBBLE = MOTE_PROGRAMS.bubble.code
+const SPORE = MOTE_PROGRAMS.spore.code
 const glslFloat = (v: number) => v.toFixed(4)
 
 // Every mote rests at its pool point; the band it rests in picks its program, so the bands stay
 // level in any pose, and it is gone by the time the band's edge reaches its rest point. Then it
 // moves on the liquid's clock, fades at its band's soft edges and the wall, and dims through the
-// liquid between it and the eye. A bubble's path is `bubbleAt` in `potion/traits.ts`.
+// liquid between it and the eye. A bubble's path is `bubbleAt` in `potion/traits.ts`. As the liquid
+// mixes, each mote changes to the mix's program (one band, floor to top) at its own moment, unseen.
 const MOTES_VERTEX = /* glsl */ `
 attribute vec4 aSeed;
 uniform vec3 uUp, uEye, uKeyDir, uKeyColour;
 uniform float uLevels[${MAX_POURS}];
 uniform float uEdges[${MAX_POURS - 1}];
 uniform int uCount;
-uniform float uFloor, uTime, uHalfHeight, uPixelRatio, uRise;
+uniform float uFloor, uTime, uHalfHeight, uPixelRatio, uRise, uMix, uMixKind, uMixDensity;
+uniform vec3 uMixColour, uMixTint;
 uniform vec3 uColour[${MAX_POURS}];
 uniform float uKind[${MAX_POURS}];
 uniform float uDensity[${MAX_POURS}];
@@ -77,12 +83,36 @@ void main() {
   for (int i = 0; i < ${MAX_POURS}; i++)
     if (band < 0 && i < uCount && h0 <= uLevels[i]) band = i;
   if (band < 0 || h0 < uFloor) return;
+  float turnAt = ${glslFloat(MOTE_TURN.from)} + ${glslFloat(MOTE_TURN.span)} * fract(aSeed.w * 13.0 + aSeed.y * 7.0);
+  bool mixed = uMix > turnAt;
   float kind = uKind[band];
-  if (kind < 0.5 || aSeed.x >= uDensity[band]) return;
+  float density = uDensity[band];
   float lo = band == 0 ? uFloor : uLevels[band - 1];
   float hi = uLevels[band];
+  float eLo = band == 0 ? 0.0 : uEdges[band - 1];
+  bool foot = band == 0;
   bool top = band == uCount - 1;
-  float fade = motesEdge(h0, lo, hi);
+  float eHi = top ? 0.0 : uEdges[band];
+  float riseMm = uRise;
+  float site = float(band) + 0.5;
+  vec3 c = uColour[band];
+  vec3 tint = uTint[band];
+  if (mixed) {
+    kind = uMixKind;
+    density = uMixDensity;
+    lo = uFloor;
+    hi = uLevels[uCount - 1];
+    eLo = 0.0;
+    eHi = 0.0;
+    foot = true;
+    top = true;
+    riseMm = uRise * ${MAX_POURS}.0;
+    site = ${MAX_POURS}.5;
+    c = uMixColour;
+    tint = uMixTint;
+  }
+  if (kind < 0.5 || aSeed.x >= density) return;
+  float fade = motesEdge(h0, lo, hi) * smoothstep(0.0, ${glslFloat(MOTE_TURN.fade)}, abs(uMix - turnAt));
   if (fade < 0.01) return;
   float t = uTime;
   vec3 p = position;
@@ -98,25 +128,29 @@ void main() {
     vec3 anchor = position;
     if (aSeed.w < ${glslFloat(BUBBLE_STREAMED)}) {
       vec3 cell = floor(position / ${glslFloat(BUBBLE_CELL_MM)});
-      vec3 site = motesHash3(vec3(cell.xy, float(band) + 0.5));
-      anchor = vec3((cell.xy + 0.2 + 0.6 * site.xy) * ${glslFloat(BUBBLE_CELL_MM)} + 0.4 * (aSeed.zy - 0.5),
+      vec3 at = motesHash3(vec3(cell.xy, site));
+      anchor = vec3((cell.xy + 0.2 + 0.6 * at.xy) * ${glslFloat(BUBBLE_CELL_MM)} + 0.4 * (aSeed.zy - 0.5),
         (cell.z + 0.5) * ${glslFloat(BUBBLE_CELL_MM)});
     }
-    float rise = fract(aSeed.y + t * (${glslFloat(BUBBLE_SPEED.base)} + ${glslFloat(BUBBLE_SPEED.spread)} * aSeed.z) / uRise);
+    float rise = fract(aSeed.y + t * (${glslFloat(BUBBLE_SPEED.base)} + ${glslFloat(BUBBLE_SPEED.spread)} * aSeed.z) / riseMm);
     anchor.x += ${glslFloat(BUBBLE_SWAY.mm)} * sin(t * ${glslFloat(BUBBLE_SWAY.rate)} + aSeed.w * ${glslFloat(BUBBLE_SWAY.phase)}) * rise;
     float span = max(hi - lo, 0.5);
     p = anchor + uUp * (lo + span * rise - dot(anchor, uUp));
     size = (0.9 + 1.1 * aSeed.z * aSeed.z) * mix(0.75, 1.15, rise);
     fade *= smoothstep(0.0, ${glslFloat(BUBBLE_FADE_IN)}, rise) * (1.0 - smoothstep(${glslFloat(BUBBLE_FADE_OUT)}, 1.0, rise));
-  } else {
+  } else if (kind < ${SPORE}.5) {
     p += 1.8 * vec3(sin(t * 0.13 + aSeed.y * 40.0), sin(t * 0.11 + aSeed.z * 17.0), sin(t * 0.09 + aSeed.w * 23.0));
     size = 1.0 + 1.8 * aSeed.w;
+  } else {
+    float fall = fract(aSeed.y + t * (${glslFloat(SPECK_SPEED.base)} + ${glslFloat(SPECK_SPEED.spread)} * aSeed.z) / riseMm);
+    vec3 anchor = position + 0.8 * vec3(sin(t * 0.21 + aSeed.w * 40.0), cos(t * 0.17 + aSeed.z * 17.0), 0.0);
+    p = anchor + uUp * (hi - max(hi - lo, 0.5) * fall - dot(anchor, uUp));
+    size = 0.7 + 0.9 * aSeed.w * aSeed.w;
+    fade *= smoothstep(0.0, ${glslFloat(SPECK_FADE.in)}, fall) * (1.0 - smoothstep(${glslFloat(SPECK_FADE.out)}, 1.0, fall));
   }
   float h = dot(p, uUp);
-  if (kind > ${BUBBLE}.5 || kind < ${FLECK}.5) {
-    float eLo = band == 0 ? 0.0 : uEdges[band - 1];
-    float eHi = top ? 0.0 : uEdges[band];
-    fade *= band > 0 ? smoothstep(lo - eLo, lo + eLo, h) : smoothstep(lo + 0.5 * size, lo + 1.5 * size, h);
+  if (kind < ${FLECK}.5 || (kind > ${BUBBLE}.5 && kind < ${SPORE}.5)) {
+    fade *= foot ? smoothstep(lo + 0.5 * size, lo + 1.5 * size, h) : smoothstep(lo - eLo, lo + eLo, h);
     fade *= top ? 1.0 - smoothstep(hi - 1.5 * size, hi - 0.5 * size, h)
                 : 1.0 - smoothstep(hi - eHi, hi + eHi, h);
   }
@@ -136,9 +170,8 @@ void main() {
   float rising = dot(v, uUp);
   if (rising > 1e-4) through = min(through, (uLevels[uCount - 1] - h) / rising);
   through = clamp(through, 0.0, eyeD);
-  vec3 c = uColour[band];
   vec3 hue = c / max(max(c.r, c.g), max(c.b, 1e-3));
-  float milk = kind > ${BUBBLE}.5 ? 0.05 : 0.0;
+  float milk = kind > ${SPORE}.5 ? 0.012 : kind > ${BUBBLE}.5 ? 0.05 : 0.0;
   vec3 seen = exp(-through * (0.02 + milk + 0.035 * (1.0 - hue)));
 
   vec4 world = modelMatrix * vec4(p, 1.0);
@@ -152,7 +185,7 @@ void main() {
     facet = normalize(mat3(modelMatrix) * facet);
     float spark = pow(abs(dot(facet, normalize(uKeyDir + eye))), 40.0);
     vec3 lit = mix(vec3(1.0), uKeyColour, 0.5);
-    vColour = uTint[band] * (lit * (0.5 + 0.5 * candle) + uKeyColour * 3.0 * spark * candle) * seen;
+    vColour = tint * (lit * (0.5 + 0.5 * candle) + uKeyColour * 3.0 * spark * candle) * seen;
     vSpin = aSeed.w * 6.2832 + t * 0.5 * (aSeed.y - 0.5);
     vAlpha = fade * mix(0.4, 1.0, seen.g) * (vSoft > 0.5 ? 0.45 : 1.0);
   } else if (kind < ${BUBBLE}.5) {
@@ -160,9 +193,12 @@ void main() {
     vColour = mix(c, vec3(1.0), 0.65) * mix(vec3(1.0), uKeyColour, 0.4) * (0.75 + 0.55 * candle) * mix(vec3(clear), seen, 0.5);
     vGlint = (0.6 + 1.6 * candle) * clear;
     vAlpha = fade * mix(0.3, 1.0, clear);
-  } else {
-    vColour = uTint[band] * mix(vec3(1.0), uKeyColour, 0.4) * (0.45 + 0.4 * candle) * seen;
+  } else if (kind < ${SPORE}.5) {
+    vColour = tint * mix(vec3(1.0), uKeyColour, 0.4) * (0.45 + 0.4 * candle) * seen;
     vAlpha = fade * (0.55 + 0.45 * aSeed.y) * mix(0.35, 1.0, seen.g);
+  } else {
+    vColour = tint * mix(vec3(1.0), uKeyColour, 0.35) * (0.5 + 0.5 * candle) * seen;
+    vAlpha = fade * (0.5 + 0.5 * aSeed.x) * mix(0.3, 1.0, seen.g);
   }
   vKind = kind;
   vec4 mv = viewMatrix * world;
@@ -204,9 +240,12 @@ void main() {
     a = 0.1 + rim + glint;
     col = col * (0.3 + 1.3 * rim) + vGlint * glint;
     cover = 0.2;
-  } else {
+  } else if (vKind < ${SPORE}.5) {
     a = exp(-r * r * 3.2) - 0.04;
     cover = 0.25;
+  } else {
+    a = 1.0 - smoothstep(0.45, 1.0, r);
+    cover = 0.35;
   }
   a = clamp(a * vAlpha, 0.0, 1.0);
   if (a < 0.004) discard;
@@ -227,6 +266,9 @@ export interface MoteUniforms {
   uHalfHeight: THREE.IUniform<number>
   uPixelRatio: THREE.IUniform<number>
   uRise: THREE.IUniform<number>
+  uMixKind: THREE.IUniform<number>
+  uMixDensity: THREE.IUniform<number>
+  uMixTint: THREE.IUniform<THREE.Vector3>
 }
 
 export interface Motes {
@@ -234,6 +276,8 @@ export interface Motes {
   material: THREE.ShaderMaterial
   /** Each band's motes from its trait: its program, its share of the pool and its colour. */
   setLayers(layers: readonly LayerLook[]): void
+  /** The mix's motes, through the whole liquid; null for none. */
+  setMixed(mixed: LayerLook | null): void
   setCavity(cavity: CavityRadii): void
   dispose(): void
 }
@@ -252,6 +296,8 @@ export function createMotes(liquid: LiquidUniforms): Motes {
     'uTime',
     'uColour',
     'uCap',
+    'uMix',
+    'uMixColour',
   ] as const
   const uniforms: MoteUniforms = {
     ...Object.fromEntries(shared.map((name) => [name, liquid[name]])),
@@ -263,6 +309,9 @@ export function createMotes(liquid: LiquidUniforms): Motes {
     uHalfHeight: { value: 400 },
     uPixelRatio: { value: 1 },
     uRise: { value: 20 },
+    uMixKind: { value: 0 },
+    uMixDensity: { value: 0 },
+    uMixTint: { value: new THREE.Vector3() },
   }
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -290,6 +339,13 @@ export function createMotes(liquid: LiquidUniforms): Motes {
         colour.set(look?.tint ?? layer?.colour ?? '#ffffff')
         uniforms.uTint.value[i]!.set(colour.r, colour.g, colour.b)
       }
+    },
+    setMixed(mixed) {
+      const look = mixed ? traitLook(mixed.trait, mixed.ingredient) : null
+      uniforms.uMixKind.value = code(look?.motes ?? null)
+      uniforms.uMixDensity.value = look?.motes ? MOTE_PROGRAMS[look.motes].density : 0
+      colour.set(look?.tint ?? mixed?.colour ?? '#ffffff')
+      uniforms.uMixTint.value.set(colour.r, colour.g, colour.b)
     },
     setCavity({ radii, z0, dz, rise }) {
       for (let i = 0; i < MOTE_RADII; i++) uniforms.uRadius.value[i] = radii[i] ?? 0
