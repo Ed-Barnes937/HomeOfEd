@@ -3,19 +3,19 @@ import { expect } from '@playwright/experimental-ct-react'
 import { streetTest as test } from './testing/iwftTest.tsx'
 import { ShelfPom } from './testing/ShelfPom.ts'
 
-test('a first visit lands on the street with two doors', async ({ mountApp }) => {
+test('a first visit lands on the street with three doors', async ({ mountApp }) => {
   const { root } = await mountApp()
   await root.verifyDoors()
   await root.verifyAt('/street')
 })
 
-test('only the wand shop and the smithy are open; the other shops stay shut', async ({
+test('only the wand shop, the smithy and the potion shop are open; the other shops stay shut', async ({
   mountApp,
 }) => {
   const { root } = await mountApp()
   await root.verifyOnlyOpenShopsAreDoors()
-  await root.verifyLitShops(['wands', 'smithy'])
-  await root.tapShutShop('potions')
+  await root.verifyLitShops(['wands', 'smithy', 'potions'])
+  await root.tapShutShop('bows')
   await root.verifyAt('/street')
 })
 
@@ -34,7 +34,7 @@ test.describe('on a phone', () => {
     const { root } = await mountApp()
     await root.verifyDoorsInView(['Go into the wand shop'])
     await root.verifyDoorOutOfView('Go into the smithy')
-    await root.verifySignposts(['Thistlewick Wands', 'The Ember Anvil'])
+    await root.verifySignposts(['Thistlewick Wands', 'Bubble & Brew', 'The Ember Anvil'])
     await root.verifyHint('Slide along the street, then tap a shop.')
     await root.verifyNoHint('Click a shop to go in.')
   })
@@ -52,11 +52,32 @@ test.describe('on a phone', () => {
     await smithy.verifyAt('/swords')
   })
 
+  test("the potion shop's signpost brings it into view, and its front goes in", async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    await root.showOnStreet('Bubble & Brew')
+    await root.verifyDoorWhollyInView('Go into the potion shop')
+    await root.verifyDoorOutOfView('Go into the wand shop')
+    await root.verifyAt('/street')
+    const potions = await root.enterPotionShop()
+    await potions.verifyAt('/potions')
+  })
+
   test('the street opens at the shop the visitor was last in', async ({ mountApp }) => {
     const { root } = await mountApp()
     await root.showOnStreet('The Ember Anvil')
     const street = await (await root.enterSmithy()).backToStreet()
     await street.verifyDoorWhollyInView('Go into the smithy')
+    await street.verifyDoorOutOfView('Go into the wand shop')
+  })
+
+  test('a visitor last in the potion shop finds the street at Bubble & Brew', async ({
+    mountApp,
+  }) => {
+    const { root } = await mountApp()
+    const street = await (await root.enterPotionShop()).backToStreet()
+    await street.verifyDoorWhollyInView('Go into the potion shop')
     await street.verifyDoorOutOfView('Go into the wand shop')
   })
 
@@ -76,6 +97,9 @@ test('with a pointer, the lights are off at rest, come up under the pointer, and
   await root.pointAt('Go into the smithy')
   await root.verifyLights('smithy', '1')
   await root.verifyLights('wands', '0')
+  await root.pointAt('Go into the potion shop')
+  await root.verifyLights('potions', '1')
+  await root.verifyLights('smithy', '0')
   await root.verifyNoEnterLink()
   await root.verifyHint('Click a shop to go in.')
 })
@@ -85,7 +109,7 @@ test.describe('on a touch phone', () => {
 
   test('a tap picks a shop and lights it, and its Enter link goes in', async ({ mountApp }) => {
     const { root } = await mountApp()
-    await root.verifyShopsArePicked(['Thistlewick Wands', 'The Ember Anvil'])
+    await root.verifyShopsArePicked(['Thistlewick Wands', 'The Ember Anvil', 'Bubble & Brew'])
     await root.verifyPicked(null)
     await root.verifyLights('wands', '0')
     await root.tapShop('Thistlewick Wands')
@@ -93,6 +117,15 @@ test.describe('on a touch phone', () => {
     await root.verifyAt('/street')
     await root.pressEnterFor('Thistlewick Wands')
     await root.verifyAt('/wands')
+  })
+
+  test('a tap picks the potion shop, and Enter Bubble & Brew goes in', async ({ mountApp }) => {
+    const { root } = await mountApp()
+    await root.tapShop('Bubble & Brew')
+    await root.verifyPicked('Bubble & Brew')
+    await root.verifyAt('/street')
+    await root.pressEnterFor('Bubble & Brew')
+    await root.verifyAt('/potions')
   })
 
   test('a signpost slides to its shop and picks it, and the pick is gone after leaving', async ({
@@ -130,7 +163,7 @@ test.describe('on a touch screen held sideways', () => {
     await root.tapShop('The Ember Anvil')
     await root.verifyPicked('The Ember Anvil')
     await root.verifyLights('wands', '0')
-    await root.tapShutShop('potions')
+    await root.tapShutShop('bows')
     await root.verifyPicked(null)
     await root.tapShop('The Ember Anvil')
     await root.tapShop('The Ember Anvil')
@@ -145,7 +178,9 @@ test('each door opens its shop, and the way back leads to the street', async ({ 
   const street = await wands.backToStreet()
   const smithy = await street.enterSmithy()
   await smithy.verifyAt('/swords')
-  await (await smithy.backToStreet()).verifyDoors()
+  const potions = await (await smithy.backToStreet()).enterPotionShop()
+  await potions.verifyAt('/potions')
+  await (await potions.backToStreet()).verifyDoors()
 })
 
 test('a reload on the street stays on the street', async ({ mountApp }) => {
@@ -215,6 +250,23 @@ test.describe('share links', () => {
     await smithy.verifySwordName('Pip')
     await smithy.verifyStage({ family: 'dagger' })
     await smithy.verifyAt('/swords')
+  })
+
+  test('a potion link at the root opens the potion shop with that potion, whatever shop was last', async ({
+    mountApp,
+  }) => {
+    const first = await mountApp()
+    const potions = await first.root.enterPotionShop()
+    await potions.chooseIn('Shape', 'Gourd bottle')
+    await potions.rename('Fizz')
+    const link = await potions.share()
+    await (await potions.backToStreet()).enterWandShop()
+
+    await first.root.openAsNewVisitor(link, '/')
+    await mountApp()
+    await potions.verifyPotionName('Fizz')
+    await potions.verifyStage({ shape: 'gourd' })
+    await potions.verifyAt('/potions')
   })
 
   test('a wand link to the shelf still loads the wand, and then forgets the link', async ({
