@@ -1,6 +1,6 @@
 # 19 - Hub card: a potion beside the wand and sword
 
-**Status:** ready-for-agent
+**Status:** built and reviewed, local only; waits for Ed to push it and merge it after the epic PR
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none to build; Ed merges it after the epic's PR (the card must not show a potion
@@ -74,3 +74,4 @@ Look at the card with `pnpm --filter hub run dev` in both themes and with reduce
 - The card's name, link, status or dates. Any armoury code.
 
 ## Comments
+- 2026-11-16 orchestrator: built (Fable) on branch `hub-armoury-potion-card` from main, one commit 53e8406e, not pushed. Review (`reviews/19-r1.md`, Fable): PASS, no must-fix. Checks: hub lint, typecheck, 89 unit and 79 CT. Shots: `shots/19/r1/sheet.png`. Left as they are, both optional: the constant `POURS` is in paint order and `BANDS` would say it better; the lead comment's two lines run past 90 columns. Taste calls for Ed are in `for-ed.md`. The push and the PR wait for Ed's word; it merges only after the epic's PR.
