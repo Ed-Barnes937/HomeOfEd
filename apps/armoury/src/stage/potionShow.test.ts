@@ -368,6 +368,18 @@ describe('the potion show as the stage plays it', () => {
     expect(again.emit).toBeGreaterThan(0)
   })
 
+  it('still fades the old effect when put back just after a tap restarted the show', () => {
+    const player = new PotionShowPlayer()
+    player.play(100, REPLAY)
+    const before = drawn(player, 100, 103, () => 1)
+    player.play(103 - FRAME, REPLAY)
+    const tapped = { t: 103, show: player.draw(103, 1) }
+    player.leave(103)
+    const after = drawn(player, 103 + FRAME, 103.25, () => 1)
+    expect(after[0]!.show.emit).toBeGreaterThan(0.5)
+    expectRunsOn([before.at(-1)!, tapped, ...after])
+  })
+
   it('leaves at once under reduced motion, and leaves a rattle unmixed', () => {
     const reduced = new PotionShowPlayer()
     reduced.play(100, REDUCED_FIRST)
