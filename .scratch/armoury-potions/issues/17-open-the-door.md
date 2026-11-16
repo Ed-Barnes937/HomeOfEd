@@ -1,6 +1,6 @@
 # 17 - Open the door on the street
 
-**Status:** ready-for-agent (the last build ticket)
+**Status:** built on `potions/17-door`; merges after ticket 15
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23 (not 24 and 25, which wait on Ed's art;
@@ -82,3 +82,4 @@ pnpm --filter armoury run build
 
 ## Comments
 - 2026-11-13 planner (re-plan): blockers updated for tickets 20-23; nothing else in this ticket changes with the new mechanic.
+- 2026-11-16 orchestrator: built (Fable) on `potions/17-door`, 54729a3a and 736e4a37. Tests first: 3 unit and 13 iwft cases failed before the data change. Checks: lint, typecheck, vitest 2071, CT 186, build, all exit 0. One spill path (the windows' light on the cobbles). Outside the owned files: one test title in `apothecary.iwft.tsx` (it said "two open doors"). No review of its own (O27); the orchestrator looked at the lit street (`shots/17/`); ticket 18's gate covers it. Merges after ticket 15 so the epic branch never shows the shop open before its last effect is in.
