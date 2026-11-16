@@ -16,11 +16,12 @@ describe('the shops on the street', () => {
     expect(new Set(SHOPS.map((shop) => shop.id)).size).toBe(8)
   })
 
-  it('open only the wand shop and the smithy', () => {
+  it('open only the wand shop, the smithy and the potion shop', () => {
     const open = SHOPS.filter((shop) => shop.to).map((shop) => [shop.id, shop.to])
     expect(open).toEqual([
       ['wands', '/wands'],
       ['smithy', '/swords'],
+      ['potions', '/potions'],
     ])
   })
 
@@ -102,12 +103,16 @@ describe('signposts', () => {
   const shop = (id: string) => SHOPS.find((s) => s.id === id) as StreetShop
 
   it('are the open shops, in their order along the street', () => {
-    expect(signposts().map((s) => s.name)).toEqual(['Thistlewick Wands', 'The Ember Anvil'])
+    expect(signposts().map((s) => s.name)).toEqual([
+      'Thistlewick Wands',
+      'Bubble & Brew',
+      'The Ember Anvil',
+    ])
   })
 
   it('include a shop as soon as it opens, wherever it stands', () => {
-    const opened = [shop('smithy'), { ...shop('potions'), to: '/wands' as const }, shop('wands')]
-    expect(signposts(opened).map((s) => s.id)).toEqual(['wands', 'potions', 'smithy'])
+    const opened = [shop('smithy'), { ...shop('bows'), to: '/wands' as const }, shop('wands')]
+    expect(signposts(opened).map((s) => s.id)).toEqual(['wands', 'bows', 'smithy'])
   })
 
   it('leave out the shops not built yet', () => {
@@ -125,12 +130,18 @@ describe('lightShapes', () => {
     expect(lightShapes(shop('wands'))[0]).toBe(shop('wands').outline)
   })
 
+  it('light the potion shop through its front and the glow on the lane before it', () => {
+    const potions = shop('potions')
+    expect(lightShapes(potions)).toEqual([potions.outline, ...(potions.spill ?? [])])
+    expect(potions.spill).toHaveLength(1)
+  })
+
   it('leave a shop that is not built yet dark', () => {
     for (const s of SHOPS.filter((s) => !s.to)) expect(lightShapes(s)).toEqual([])
   })
 
   it('light a shop as soon as it opens', () => {
-    const potions = shop('potions')
-    expect(lightShapes({ ...potions, to: '/wands' })).toEqual([potions.outline])
+    const bows = shop('bows')
+    expect(lightShapes({ ...bows, to: '/wands' })).toEqual([bows.outline])
   })
 })

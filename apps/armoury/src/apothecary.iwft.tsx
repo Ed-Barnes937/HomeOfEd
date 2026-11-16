@@ -143,7 +143,7 @@ test('walking between all three shops keeps each bench its own item and locks, a
   await expect(putBackButton).toHaveCount(0)
 })
 
-test('the street still has only its two open doors', async ({ mountApp }) => {
+test('the way back leads to a street with the potion shop open', async ({ mountApp }) => {
   const { root } = await mountApp()
   const street = await root.backToStreet()
   await street.verifyOnlyOpenShopsAreDoors()
