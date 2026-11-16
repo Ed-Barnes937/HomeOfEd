@@ -859,8 +859,8 @@ function drawSilt(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Previe
   return drivePreview(step, drive, 190)
 }
 
-// armoury: a wand and a sword crossed. The wand's tip glows through the five
-// core colours and sheds sparks; every few seconds a glint runs up the sword's edge.
+// armoury: a wand and a sword crossed above a potion flask. The wand's tip glows and sheds
+// sparks; every few seconds a glint runs up the sword's edge and a bubble rises in the flask.
 function drawArmoury(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Preview {
   const { ctx, w, h } = cvctx(cv)
   const CORES = ['#ffc95c', '#8fe3ff', '#6dff9c', '#c49bff', '#ff7a45']
@@ -878,6 +878,12 @@ function drawArmoury(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Pre
     x < taper
       ? -5 + (1 * (x - guard)) / (taper - guard)
       : (-4 * (swordLength - x)) / (swordLength - taper)
+  const POURS: [string, number][] = [
+    ['#f5bd3a', 22],
+    ['#e0479a', 12.5],
+    ['#c7b2f0', 6.5],
+  ]
+  const flask = { x: w * 0.5, y: h * 0.95 }
   let t = 0
   const step = (): void => {
     const dark = darkRef.current
@@ -959,6 +965,50 @@ function drawArmoury(cv: HTMLCanvasElement, darkRef: DarkRef, drive: Drive): Pre
     ctx.fillStyle = dark ? '#6b4329' : '#5a3a22'
     ctx.fillRect(0, -5, length * 0.3, 10)
     for (const at of [0.08, 0.3, 0.34]) ctx.fillRect(length * at, -6, 2.5, 12)
+    ctx.restore()
+
+    ctx.save()
+    ctx.translate(flask.x, flask.y)
+    ctx.beginPath()
+    ctx.moveTo(-2.4, -32)
+    ctx.lineTo(-2.4, -27)
+    ctx.bezierCurveTo(-2.4, -22, -10, -16, -10, -10)
+    ctx.arc(0, -10, 10, Math.PI, 0, true)
+    ctx.bezierCurveTo(10, -16, 2.4, -22, 2.4, -27)
+    ctx.lineTo(2.4, -32)
+    ctx.fillStyle = dark ? 'rgba(236,229,218,0.12)' : 'rgba(255,255,255,0.45)'
+    ctx.fill()
+    ctx.save()
+    ctx.clip()
+    for (const [pour, level] of POURS) {
+      ctx.fillStyle = pour
+      ctx.fillRect(-11, -level, 22, level)
+    }
+    ctx.restore()
+    ctx.strokeStyle = dark ? 'rgba(236,229,218,0.7)' : 'rgba(44,50,46,0.55)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.fillStyle = dark ? '#c9a077' : '#a97c50'
+    ctx.fillRect(-2, -36, 4, 5.5)
+    ctx.lineWidth = 1.4
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(-3.6, -32)
+    ctx.lineTo(3.6, -32)
+    ctx.stroke()
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.arc(0, -10, 7, Math.PI * 0.8, Math.PI * 1.15)
+    ctx.stroke()
+    const rise = (t % 4) / 1.4
+    if (rise < 1) {
+      ctx.globalAlpha = 0.9 * Math.min(1, 3 * Math.sin(Math.PI * rise))
+      ctx.fillStyle = '#fff'
+      ctx.beginPath()
+      ctx.arc(1.5 * Math.sin(rise * 7), -4 - rise * 15, 1.3, 0, Math.PI * 2)
+      ctx.fill()
+    }
     ctx.restore()
 
     const pulse = 0.8 + 0.2 * Math.sin(t * 3)
