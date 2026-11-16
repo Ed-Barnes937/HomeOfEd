@@ -38,7 +38,7 @@ export const TRAIT_LOOKS: Record<Trait, TraitLook> = {
   glitter: { shading: { ...NONE, fleck: 1 }, motes: 'fleck', tint: '#ffe4a0' },
   glow: { shading: { ...NONE, glow: 1 }, motes: null, tint: null },
   swirl: { shading: { ...NONE, swirl: 1 }, motes: null, tint: null },
-  murk: { shading: { ...NONE, cloud: 0.8, swirl: 0.25 }, motes: 'speck', tint: '#e6d49c' },
+  murk: { shading: { ...NONE, cloud: 0.8 }, motes: 'speck', tint: '#e6d49c' },
 }
 
 /** An ingredient's own take on its trait; dropped if its trait is ever cut to another. */
