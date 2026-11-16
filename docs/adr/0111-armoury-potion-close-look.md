@@ -1,6 +1,6 @@
 # 0111 - armoury potion close look: the hold, the slosh and the show's seams
 
-- **Status:** Accepted (ticket 14; ticket 15 completes it with the uncorking and its effects)
+- **Status:** Accepted (ticket 14; ticket 23 adds the mix; ticket 15 completes it with the uncorking and its effects)
 - **Date:** 2026-11-14
 - **Related:** [ADR 0105](0105-armoury-upright-items-on-the-stage-rigs.md) (the upright hold),
   [ADR 0107](0107-armoury-bottle-generator.md) (the tipped level table, "The stage's level seam"),
@@ -81,6 +81,103 @@ the pose and the surface's wobble land beside them. `--early=<s>` starts the fir
 seconds into the arrival show. A potion takes `--flourish` and `--glints` (a glint's tap replays
 the show) in place of its close frames. `--views` takes `narrow` (900x900) and `small` (360x640).
 
+### The mix (ticket 23)
+
+**Two liquid states on one path.** The liquid always carries its layers and, once three are in,
+the one liquid they mix into (`setMixed`: `spec.mix`'s colour, its trait and its main ingredient).
+One weight, `uMix` (0 the layers, 1 the mix), blends the bands' colour and every trait weight
+towards the mix's, after `potionBand`. At rest the weight is the spec's (`mixDrawn`: 1 once `mixed`),
+so the box stage, the picture and the close look draw a mixed potion with the same code. A mixed
+bottle is not rebuilt as a one-band bottle: its three band tops, its level table and its volume
+stay, so the surface, the slosh and the mesh do not change when `mixed` flips, and the swirl needs
+both states at once anyway. The mix's glow goes through the same soft cap as a band's; the brightest
+glowing mix of the 729 recipes peaks at 0.84 before it, under the 1.288 cap.
+
+**The vortex is a warp, not a simulation.** A second weight (`uVortex`; the ticket's `uSwirl` was
+already the marbling trait's own uniform) shifts the height the bands are read at, never the
+geometry. A point is twisted about the bottle's axis by `pitch * h + radial * r - spin` (`h` along
+the sloshed surface's up, as the bands measure it), and the shift is the twisted point's sideways
+place plus a churn of noise, times the swirl and the liquid's depth (`VORTEX`, `vortexShift`). A
+level edge becomes a helix whose reach grows until the bands fold over one another into ribbons,
+and `spin` turns the whole pattern two turns over the swirl. Only the colour lookup moves, so the
+surface stays level and nothing can cross it or the glass at any lean. The liquid mixes unevenly
+while it swirls: streaks of it turn to the mix before the rest (`spread`), so the mix grows through
+the bands as ribbons, not as a fade; with no vortex (reduced motion) it is a plain cross-fade. On
+a replay `uMix` stays 1 and thin streaks let up to `flare` of the wound bands show through, fading
+with the vortex. A simulation was not weighed for long: it could not promise to end exactly on the
+mixed look at the reveal, nor to draw the same frame twice for a shot, and the warp costs one noise
+sample and a sine while it runs and nothing at rest.
+
+**No page clock in it.** The rule ticket 11 learnt twice holds: the vortex reads no page time. The
+turn is an added phase, and everything multiplied by a moving span is an envelope from 0 to 1.
+`vortexShift` is the shader's twin (the numbers are injected into the GLSL from `VORTEX`), tested
+to be the same an hour after the page opened as at its start, and continuous while the surface
+sloshes 12 degrees.
+
+**Motes.** Still one draw. As the liquid mixes each mote changes from its band's program to the
+mix's (one band from the floor to the top) at its own moment between 0.2 and 0.8 of the mix
+(`MOTE_TURN`), faded to nothing within 0.15 of it, so the two programs cross-fade as populations
+and no mote is seen to switch. The mix's bubbles are timed on a full bottle's height, three bands,
+so they rise at the designed 6 to 12 mm a second, not three times it. The motes are not carried
+round by the vortex; the ribbons carry the motion.
+
+**Murk.** A murky mix is milky (`cloud` 0.8) with pale specks (`speck`, the motes' fourth program)
+sinking 1.2 to 2.6 mm a second on a fixed length, fading in under the surface and out above the
+floor. A marbling under the milk was tried and dropped: it doubled the trait's noise for veins that
+barely showed.
+
+**The clock** (`stage/potionShow.ts`, pure). `potionShow(sinceStart, { firstMix, full,
+reducedMotion })` gives every beat:
+
+| Beat | Seconds | What moves |
+|---|---|---|
+| lift | 0 to 0.4 | the bottle rises 6 percent of its height, and holds |
+| swirl | 0.4 to 1.6 | the vortex rises over the first 0.36 s and falls over the last 0.48 s; on a first mix `mix` runs 0 to 1 between 0.54 and 1.48 s |
+| twist | 1.6 to 1.9 | the stopper turns a quarter turn and works 0.15 of its plug loose |
+| pop | 1.9 (`MIX_REVEAL_SECONDS`) | the stopper is out, 1.3 plug depths in 0.2 s, and bobs; `popped` is true until the sink |
+| live | to 4.4 | ticket 15's effect (`emit`, `age` and `cap` rest at 0, 0 and the resting cap here) |
+| settle | 4.4 to 4.9 | the stopper goes back and turns back |
+| sink | 4.9 to 5.2 | the bottle sinks back to the hold |
+
+Fewer than three: the stopper rattles in its seat for 0.4 s and nothing else moves. Reduced motion:
+no lift, no vortex and no turn; `mix` cross-fades in 0.3 s (`MIX_REVEAL_SECONDS_REDUCED`), the
+stopper is then shown out without travelling for 0.3 + 1.2 + 0.5 s (the effect's fade, hold and
+fade), and is back; 2.3 s in all, and no rattle.
+
+**The player** (`PotionShowPlayer`) is the stage's only state for the show. Every flourish plays a
+new one, timed from `flourishAt`, so the pop stays in step with the shell's reveal timer. A tap
+mid-show restarts it from what was drawn, eased over 0.3 s: the mix never goes back towards the
+layers and the vortex carries on from where it had turned. The params turning `mixed` at the reveal
+change nothing, since `mix` has been 1 since 1.48 s. A put-back eases the show to rest over 0.5 s,
+mixed if three were in (the shell mixes the potion on closing), the vortex fading where it stands;
+at once under reduced motion. Whether a show is a first mix is decided from the params when its
+flourish starts.
+
+**Closing during the lift.** Before the bottle arrives no flourish has started, so the shell has no
+timer and the potion stays unmixed. That is kept: the child saw no swirl, and the next tap plays the
+first mix.
+
+**The stage.** `flourishSeconds` is the show's length, so the rig's upright hold lasts exactly the
+show. The hold's 0.3 s eases fit inside the lift (0.4 s) and are the sink (0.3 s), so
+`uprightFlourishWeight` keeps its shape and there is no second hold. The lift is a translation
+along the bottle's axis of a group inside the held frame: it plays under a drag and cannot slosh the
+liquid. The stopper's lift and turn and the liquid's mix reach the mesh through `{ current }`
+holders written in `useFrame`, with no render. `Sloshing` is mounted beside the mesh, outside
+anything that changes with `mixed`.
+
+**Cost** (M3, 390x844 at DPR 3, the close look 0.45 to 1.55 s into the show, medians of five; the
+machine was under other load). Frame interval with vsync off, ticket 14's method: 1.97 to 2.12 ms
+for the first-visit potion and 2.33 to 2.28 ms for a murky round flask, before to after, beside the
+wand's 5.9 to 6.2 ms. With a pixel read back each frame, which the wand's post pass stalls under:
+5.0 to 5.7 ms before and 6.1 to 6.3 ms after for the first visit, 7.4 before and 7.8 to 8.6 ms
+after for the murky flask. The swirl costs about 1 ms at most.
+
+**The shots script** reads the show's length from the stage's probe (`flourishSeconds`) before the
+first drag. A full potion mixes 1.9 s into its arrival show whatever the script does (the `--face`
+touch was measured: it starts no flourish), so a close frame of three layers is one taken before
+the pop; held frames stop the stage's clock but not the shell's timer, so a held frame's label and
+shade can show the reveal early.
+
 ## Consequences
 
 - A child's first drag always moves the bottle, even in the first second of the show.
@@ -92,5 +189,12 @@ the show) in place of its close frames. `--views` takes `narrow` (900x900) and `
 - **For ticket 15 (the uncorking and its effects):** a child holding a drag during the pop tips the
   effect's box with the bottle; let go, the hold brings the bottle upright within 0.3 s. Effects
   should stay correct (in their box, on screen) at a lean, not assume upright.
+- **For ticket 15, from the mix:** `potionShow` already returns `emit`, `age` and `cap` at rest
+  values and `popped` from the pop to the sink; fill them in the clock, and read them from the
+  `PotionShow` the stage's `Show` writes each frame (`drawn.show.current`). The neck is 6 percent of
+  the bottle's height higher from 0.4 to 4.9 s (the lifted group), and the stopper hangs 1.3 plug
+  depths out, bobbing, above it. A restart blends `emit` and `cap` over 0.3 s and jumps `age`.
+- **For ticket 12 (the pour):** the mix needs three layers, so a pour never meets `uMix` above 0;
+  `setMixed(null)` clears the mix's traits for a bottle with fewer than three.
 - The wand and the sword give no outline and no upright hold, so none of this reaches them; their
   pixels are re-diffed against the ticket 04 baseline.

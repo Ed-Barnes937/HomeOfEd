@@ -14,6 +14,8 @@
 // its idle turn begins, so its label faces the camera in every close frame, lean and tip. A potion's close frames
 // are timed from the lift, the close look's first frame; when each was taken, from the tap, lands in
 // <name>-<view>-close.txt.
+// A full potion mixes 1.9 s into its arrival show, so its later close frames show the mix. A held frame stops the
+// stage's clock but not the shop's reveal timer, so its label and shade can show the reveal early.
 // --freeze=<seconds> holds a potion's liquid clock (and the candle's flicker) at that moment in every frame (dev server only).
 // --clay draws a sword or a potion in plain grey and --focus adds zooms on the tip or hilt (dev server only);
 // --box-only skips the close look; --rolls turns the zoomed sword by each angle (degrees) in turn,
