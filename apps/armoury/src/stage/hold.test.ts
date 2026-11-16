@@ -251,17 +251,23 @@ describe("the hold's hand-overs", () => {
 
   test('the last finger up gives the item back at that moment of the flourish, once', () => {
     const taken = { upright: leaned, holdBack: Infinity }
-    expect(holdOn(taken, { kind: 'release', since: 1.3 })).toEqual({ upright: leaned, holdBack: 1.3 })
+    expect(holdOn(taken, { kind: 'release', since: 1.3 })).toEqual({
+      upright: leaned,
+      holdBack: 1.3,
+    })
     const given = { upright: leaned, holdBack: 0.4 }
     expect(holdOn(given, { kind: 'release', since: 2 })).toEqual(given)
   })
 
   test('a flourish starts held, or taken while a drag is moving the item', () => {
     const taken = { upright: leaned, holdBack: Infinity }
-    expect(holdOn(taken, { kind: 'flourish', dragging: false })).toEqual({ upright: leaned, holdBack: 0 })
-    expect(holdOn({ upright: leaned, holdBack: 0.7 }, { kind: 'flourish', dragging: true })).toEqual(
-      taken,
-    )
+    expect(holdOn(taken, { kind: 'flourish', dragging: false })).toEqual({
+      upright: leaned,
+      holdBack: 0,
+    })
+    expect(
+      holdOn({ upright: leaned, holdBack: 0.7 }, { kind: 'flourish', dragging: true }),
+    ).toEqual(taken)
   })
 })
 
