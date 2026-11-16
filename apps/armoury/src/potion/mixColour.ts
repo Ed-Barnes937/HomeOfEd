@@ -16,10 +16,10 @@ export interface Oklch {
   h: number
 }
 
-const MURK_BASE = '#5b5533'
+const MURK_BASE = '#706a3d'
 const MURK_PULL = 0.15
-const MURK_MAX_CHROMA = 0.05
-const MURK_LIGHTNESS: [number, number] = [0.38, 0.48]
+const MURK_MAX_CHROMA = 0.065
+const MURK_LIGHTNESS: [number, number] = [0.46, 0.56]
 const EFFECT_MIN_CHROMA = 0.12
 const EFFECT_LIGHTNESS: [number, number] = [0.58, 0.78]
 const REACH_CEILING = 3

@@ -217,10 +217,12 @@ IngredientId | null; strength: 1 | 2 | 3; angle: number; reach: number }`.
     ingredient's colour at full strength (pale Moonmilk is lifted to a jewel lavender), a mix that
     nearly clashed is a little dusky, and none is muddy. Starting values, checked by script: the
     first-visit recipe mixes to `#c85370`, three Moonmilk to `#c9a3f5`, three Bluebell to its own
-    `#5b8def`, Frogfizz, Bluebell and Puffcap (murky) to `#645e40`.
-  - Murky: a designed mud, `#5b5533` (OKLCH about 0.45, 0.05, 100), moved 15 percent in OKLab
-    towards the mean of the three ingredient colours, then chroma capped at `0.05` and lightness
-    clamped to `[0.38, 0.48]`. Every murky mix is brown-green, each a little different.
+    `#5b8def`, Frogfizz, Bluebell and Puffcap (murky) to `#777048`.
+  - Murky: a designed mud, `#706a3d` (OKLCH about 0.52, 0.065, 102), moved 15 percent in OKLab
+    towards the mean of the three ingredient colours, then chroma capped at `0.065` and lightness
+    clamped to `[0.46, 0.56]` (ticket 23's gate lifted it from `#5b5533`, `0.05` and
+    `[0.38, 0.48]`, which a dark glass took to black). Every murky mix is brown-green, each a
+    little different.
   - The numbers are starting values; ticket 23 tunes them at its gate. Tests pin the bounds, not
     the hex values.
 - `potionMix(p: Params): PotionMix | null`: the mix of the three slots whenever all three are

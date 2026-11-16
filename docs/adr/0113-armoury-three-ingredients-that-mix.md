@@ -87,11 +87,12 @@ Designed in `mixColour.ts`, never an RGB average:
   `s` is how far the reach is between 0.78 and 3, raised to at least 0.12, lightness
   clamped to 0.58-0.78. A pure mix is its ingredient at full strength, a near clash
   a little dusky, none muddy.
-- **Murky:** the mud `#5b5533` moved 15 percent in OKLab towards the mean of the three
-  colours, chroma capped at 0.05, lightness clamped to 0.38-0.48.
+- **Murky:** the mud `#706a3d` moved 15 percent in OKLab towards the mean of the three
+  colours, chroma capped at 0.065, lightness clamped to 0.46-0.56. Ticket 23's gate lifted
+  it from `#5b5533`, 0.05 and 0.38-0.48 (ADR 0111, "The mix").
 - Tests pin the bounds (effect chroma at least 0.12, lightness 0.58-0.78; murky chroma
-  at most 0.05, lightness at most 0.5), determinism and four spec starting values.
-  Ticket 23 may retune the numbers at its gate; ticket 10 retunes ingredient colours
+  at most 0.065, lightness 0.46-0.56), determinism and four spec starting values.
+  Ticket 23 retuned the mud at its gate; ticket 10 retunes ingredient colours
   under Ed's light.
 
 ### Puffcap

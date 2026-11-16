@@ -60,9 +60,9 @@ describe('murkyColour', () => {
 
   it('is a dull brown-green, never bright', () => {
     const { l, c } = hexToOklch(murkyColour(colours))
-    expect(c).toBeLessThanOrEqual(0.05 + 0.005)
-    expect(l).toBeLessThanOrEqual(0.5)
-    expect(l).toBeGreaterThanOrEqual(0.38 - 0.01)
+    expect(c).toBeLessThanOrEqual(0.065 + 0.005)
+    expect(l).toBeLessThanOrEqual(0.56 + 0.01)
+    expect(l).toBeGreaterThanOrEqual(0.46 - 0.01)
   })
 
   it('is deterministic and a little different for different ingredients', () => {

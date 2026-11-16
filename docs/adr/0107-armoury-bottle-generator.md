@@ -163,7 +163,8 @@ every shape a child can make, which was the bar.
   falls back to a choice's default for a value it does not know, and the stopper's default is
   `cork`; tests pin it at the schema, the save document and the share link. Nothing had shipped,
   so there is no other migration.
-- **Presets:** Puddle Jumper (frogfizz, bluebell and puffcap in smoky glass on a tag) takes a cork,
+- **Presets:** Puddle Jumper (frogfizz, bluebell and puffcap in smoky glass on a tag; sea glass
+  since ticket 23, ADR 0111) takes a cork,
   for its earthy pond; Night Sky (moonmilk and rosehip in violet glass) takes the glass stopper, a
   jewel for a night sky. Both kept their other choices.
 - **Budgets now**, across all 840 combinations (necks in 0.05 steps): glass 13.6k (gourd, neck 1),

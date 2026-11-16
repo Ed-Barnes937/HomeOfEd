@@ -40,7 +40,7 @@ export const potionPresets: { name: string; params: Params }[] = [
     params: recipe(['frogfizz', 'bluebell', 'puffcap'], 'yes', {
       shape: 'tall',
       neck: 0.6,
-      glass: 'smoky',
+      glass: 'sea',
       stopper: 'cork',
       label: 'tag',
     }),

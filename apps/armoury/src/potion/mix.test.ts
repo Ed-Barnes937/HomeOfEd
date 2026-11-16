@@ -247,8 +247,9 @@ describe('mixPotion colour', () => {
       const mix = mixPotion(recipe)
       const { l, c } = hexToOklch(mix.colour)
       if (mix.outcome === 'murky') {
-        expect(c, recipe.join()).toBeLessThanOrEqual(0.05 + 0.005)
-        expect(l, recipe.join()).toBeLessThanOrEqual(0.5)
+        expect(c, recipe.join()).toBeLessThanOrEqual(0.065 + 0.005)
+        expect(l, recipe.join()).toBeGreaterThanOrEqual(0.46 - 0.01)
+        expect(l, recipe.join()).toBeLessThanOrEqual(0.56 + 0.01)
       } else {
         expect(c, recipe.join()).toBeGreaterThanOrEqual(0.12 - 0.005)
         expect(l, recipe.join()).toBeGreaterThanOrEqual(0.58 - 0.01)
