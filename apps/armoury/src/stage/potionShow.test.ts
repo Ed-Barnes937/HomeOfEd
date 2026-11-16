@@ -8,6 +8,7 @@ import {
   type PotionShow,
   PotionShowPlayer,
   SHOW_BEATS,
+  showOptions,
   showRest,
   showSeconds,
   type ShowOptions,
@@ -237,5 +238,24 @@ describe('the potion show as the stage plays it', () => {
     rattle.play(100, RATTLE)
     rattle.leave(100.1)
     expect(rattle.draw(101, 0)).toEqual(showRest(0))
+  })
+})
+
+describe('the show a potion plays at a flourish', () => {
+  const layers = (n: number) => Array.from({ length: n }, () => ({}))
+
+  it('swirls three unmixed layers into the mix, once', () => {
+    expect(showOptions({ layers: layers(3), mixed: false }, false)).toEqual(FIRST)
+    expect(showOptions({ layers: layers(3), mixed: true }, false)).toEqual(REPLAY)
+  })
+
+  it('only rattles the stopper with fewer than three in', () => {
+    for (const n of [0, 1, 2])
+      expect(showOptions({ layers: layers(n), mixed: false }, false)).toEqual(RATTLE)
+  })
+
+  it('carries reduced motion through', () => {
+    expect(showOptions({ layers: layers(3), mixed: false }, true)).toEqual(REDUCED_FIRST)
+    expect(showOptions({ layers: layers(3), mixed: true }, true)).toEqual(REDUCED_REPLAY)
   })
 })

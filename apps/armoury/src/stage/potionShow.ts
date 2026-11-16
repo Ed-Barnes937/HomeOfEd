@@ -3,6 +3,7 @@
 // restart, the reveal and a put-back.
 
 import { MIX_REVEAL_SECONDS, MIX_REVEAL_SECONDS_REDUCED } from '../potion/mixBeats.ts'
+import { MAX_POURS } from '../potion/potionSchema.ts'
 import { REST_CAP } from './potionMaterials.ts'
 
 /** When each beat starts, seconds from the tap; the pop is the reveal. */
@@ -41,6 +42,15 @@ export interface ShowOptions {
   /** A restart's mix and vortex turn as drawn when it was tapped. */
   mixFrom?: number
   spinFrom?: number
+}
+
+/** The show a potion plays at a flourish, by the potion as it is then. */
+export function showOptions(
+  spec: { layers: readonly unknown[]; mixed: boolean },
+  reducedMotion: boolean,
+): ShowOptions {
+  const full = spec.layers.length === MAX_POURS
+  return { firstMix: full && !spec.mixed, full, reducedMotion }
 }
 
 export interface PotionShow {
