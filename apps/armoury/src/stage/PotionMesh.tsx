@@ -130,6 +130,19 @@ export function mixDrawn(
   return show ? show.current : spec.mixed ? MIXED : LAYERED
 }
 
+/** Whether two specs ask for one build: the same bottle holding the same liquid, whatever `mixed` says. */
+export function sameBuild(a: PotionSpec, b: PotionSpec): boolean {
+  return (
+    a === b || JSON.stringify({ ...a, mixed: false }) === JSON.stringify({ ...b, mixed: false })
+  )
+}
+
+/** The spec a built bottle is drawn as: the latest while it asks for this build, else as last shown, so `mixed` neither waits for a rebuild nor runs ahead of one. */
+export function shownSpec(shown: PotionSpec, built: PotionSpec, latest: PotionSpec): PotionSpec {
+  if (sameBuild(built, latest)) return latest
+  return sameBuild(built, shown) ? shown : built
+}
+
 /** The one liquid a spec's layers mix into, once three are in. */
 export function mixLook({ mix }: Pick<PotionSpec, 'mix'>): LayerLook | null {
   return mix ? { colour: mix.colour, trait: mix.trait, ingredient: mix.main } : null
@@ -201,12 +214,12 @@ function buildAll({ spec, tips }: { spec: PotionSpec; tips: boolean }): Built {
   }
 }
 
-/** The mesh for `spec`: built at once the first time, then at most once a frame, from the latest spec. */
+/** The mesh for `spec`: built at once the first time, then at most once a frame, from the latest spec that asks for another build. */
 function usePotionBuild(spec: PotionSpec, tips: boolean): Built {
   const [built, setBuilt] = useState(() => buildAll({ spec, tips }))
   const [builder] = useState(() => latestOnly(buildAll, setBuilt))
   useEffect(() => {
-    if (built.spec !== spec || (tips && !built.table)) builder.request({ spec, tips })
+    if (!sameBuild(built.spec, spec) || (tips && !built.table)) builder.request({ spec, tips })
   }, [spec, tips, built, builder])
   useEffect(() => () => builder.cancel(), [builder])
   return built
@@ -321,6 +334,8 @@ export interface PotionMeshProps {
   stopperTurn?: number | { readonly current: number }
   /** A show's mix, read as the liquid is drawn. By default, the spec's at rest: its layers, or the mix once mixed. */
   mix?: { readonly current: LiquidMix }
+  /** The spec as the page last rendered it, read as the liquid is drawn: the canvas renders a task behind the page. By default, `spec`. */
+  latest?: { readonly current: PotionSpec }
   /** Each band's top `h`, mm, bottom first; read every frame. By default, the levels for the surface's up. */
   levels?: number[]
   /** The surface's up as a direction in the up frame (`upFrom`, or the scene); read every frame. By default, +y: level. */
@@ -389,7 +404,8 @@ function useLabelInk(spec: PotionSpec, part: PotionParts['label'], name: string,
       texture.needsUpdate = true
     }
     draw()
-    void document.fonts?.load('64px "IM Fell English"').then(() => live && draw())
+    const font = '64px "IM Fell English"'
+    if (!document.fonts?.check(font)) void document.fonts?.load(font).then(() => live && draw())
     return () => {
       live = false
     }
@@ -447,6 +463,9 @@ function useSurface(props: PotionMeshProps, built: Built) {
   const { levels, surfaceNormal, upFrom, stopperLift = 0, stopperTurn = 0, mix } = props
   const surface = useRef({ built, levels, surfaceNormal, upFrom, stopperLift, stopperTurn, mix })
   surface.current = { built, levels, surfaceNormal, upFrom, stopperLift, stopperTurn, mix }
+  const page = useRef({ spec: props.spec, latest: props.latest })
+  page.current = { spec: props.spec, latest: props.latest }
+  const shown = useRef({ spec: built.spec, built: built.spec, latest: built.spec })
   const work = useMemo(() => {
     const lazy = { spec: null as PotionSpec | null, table: null as LevelTable | null }
     return {
@@ -471,7 +490,14 @@ function useSurface(props: PotionMeshProps, built: Built) {
   const tops = (liquid: THREE.Object3D) => liquidTops(liquid, surface.current, work)
   const drawStopper = (stopper: THREE.Object3D) =>
     poseStopper(stopper, surface.current.stopperLift, surface.current.stopperTurn)
-  const mixNow = () => mixDrawn(surface.current.built.spec, surface.current.mix)
+  const mixNow = () => {
+    const { built, mix } = surface.current
+    const latest = page.current.latest?.current ?? page.current.spec
+    const was = shown.current
+    if (was.built !== built.spec || was.latest !== latest)
+      shown.current = { spec: shownSpec(was.spec, built.spec, latest), built: built.spec, latest }
+    return mixDrawn(shown.current.spec, mix)
+  }
   return { work, tops, drawStopper, mixNow }
 }
 

@@ -5,11 +5,10 @@ import * as THREE from 'three'
 import { compilePotion, type PotionSpec } from '../potion/compile.ts'
 import { isGold, potionGlowColour, potionName } from '../potion/describe.ts'
 import { potionOutline } from '../potion/outline.ts'
-import { MAX_POURS } from '../potion/potionSchema.ts'
 import { bottleProfile } from '../potion/profile.ts'
 import { FlourishProbe, PROBE } from './FlourishProbe.tsx'
 import { HeldRig, type HeldItem } from './HeldRig.tsx'
-import { CLAY, PotionMesh } from './PotionMesh.tsx'
+import { CLAY, PotionMesh, sameBuild } from './PotionMesh.tsx'
 import {
   ApothecaryEnvironment,
   ApothecaryLights,
@@ -22,7 +21,13 @@ import {
   useLiquidClock,
 } from './potionScene.tsx'
 import { PotionPoseProbe } from './PotionPoseProbe.tsx'
-import { type PotionShow, PotionShowPlayer, showRest, showSeconds } from './potionShow.ts'
+import {
+  type PotionShow,
+  PotionShowPlayer,
+  showOptions,
+  showRest,
+  showSeconds,
+} from './potionShow.ts'
 import { MM } from './scene.tsx'
 import { restingSlosh, sloshNormal, spinBetween, stepSlosh } from './slosh.ts'
 import type { CloseUpHandle, CloseUpProps } from './stage.ts'
@@ -32,7 +37,12 @@ const MIN_GIRTH_MM = 30
 /** The close look's lights stand about a bottle's middle; this far down to its foot, scene units. */
 const CLOSE_FOOT_Y = -0.75
 
-const isFull = (spec: PotionSpec) => spec.layers.length === MAX_POURS
+/** The spec as last built from: the same object while only `mixed` changes, so the reveal makes nothing again. */
+function useBuildSpec(spec: PotionSpec): PotionSpec {
+  const held = useRef(spec)
+  if (!sameBuild(held.current, spec)) held.current = spec
+  return held.current
+}
 
 export function potionHeldItem(spec: PotionSpec, reducedMotion = false): HeldItem {
   const { widthMm, glass, stopper } = potionOutline(spec)
@@ -47,7 +57,7 @@ export function potionHeldItem(spec: PotionSpec, reducedMotion = false): HeldIte
     boxHalfWidth: POTION_HALF_WIDTH,
     hold: 'upright',
     flourish: 'own',
-    flourishSeconds: showSeconds({ full: isFull(spec), reducedMotion }),
+    flourishSeconds: showSeconds(showOptions(spec, reducedMotion)),
     boxView: 'front',
     boxCentreY: boxCentreY(spec),
     widthMm,
@@ -128,23 +138,22 @@ function Show({
 }) {
   const [player] = useState(() => new PotionShowPlayer())
   const s = useRef({ played: null as number | null, left: false })
-  const plugMm = useMemo(() => bottleProfile(spec).stopperSeat.depthMm, [spec])
+  const bottle = useBuildSpec(spec)
+  const plugMm = useMemo(() => bottleProfile(bottle).stopperSeat.depthMm, [bottle])
   useFrame(({ clock }) => {
     const now = clock.elapsedTime
-    const full = isFull(spec)
     if (leaving.current) {
       if (!s.current.left) player.leave(now)
       s.current.left = true
     } else if (at !== null && at !== s.current.played) {
       s.current.played = at
-      player.play(at, { firstMix: full && !spec.mixed, full, reducedMotion })
+      player.play(at, showOptions(spec, reducedMotion))
     }
     const show = player.draw(now, spec.mixed ? 1 : 0)
     drawn.show.current = show
     drawn.stopperLift.current = show.stopperLift * plugMm
     drawn.stopperTurn.current = show.stopperTurn
     if (lifted.current) lifted.current.position.y = show.lift * spec.heightMm * MM
-    if (PROBE) (window as Window & { potionShow?: PotionShow }).potionShow = show
   })
   return null
 }
@@ -152,7 +161,8 @@ function Show({
 /** The close look: the bottle rises from the table and plays its show; it leans and tips under a finger and rights itself, its liquid sloshing. */
 export function PotionCloseUpStage({ params, reducedMotion, name, ref, ...rig }: CloseUpProps) {
   const spec = useMemo(() => compilePotion(params), [params])
-  const item = useMemo(() => potionHeldItem(spec, reducedMotion), [spec, reducedMotion])
+  const bottle = useBuildSpec(spec)
+  const item = useMemo(() => potionHeldItem(bottle, reducedMotion), [bottle, reducedMotion])
   const held = useRef<CloseUpHandle>(null)
   const leaving = useRef(false)
   const lifted = useRef<THREE.Group>(null)

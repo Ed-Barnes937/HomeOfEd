@@ -22,6 +22,8 @@ import {
   mixLook,
   poseStopper,
   RENDER_ORDER,
+  sameBuild,
+  shownSpec,
   surfaceUp,
 } from './PotionMesh.tsx'
 import { showSeconds } from './potionShow.ts'
@@ -287,6 +289,64 @@ describe('the mixed liquid as it is drawn', () => {
     expect(mixLook(potion(withPours(['frogfizz', 'rosehip'])))).toBeNull()
     const murky = potion(withPours(['emberroot', 'snailshine', 'moonmilk']))
     expect(mixLook(murky)).toMatchObject({ trait: 'murk', ingredient: null })
+  })
+})
+
+describe('the build a spec asks for', () => {
+  const three = withPours(['moonmilk', 'rosehip', 'starpetal'])
+  const layered = potion({ ...three, mixed: 'no' })
+
+  test('is the same one when only mixed differs, so the reveal rebuilds nothing', () => {
+    expect(sameBuild(layered, layered)).toBe(true)
+    expect(sameBuild(layered, potion({ ...three, mixed: 'no' }))).toBe(true)
+    expect(sameBuild(layered, potion({ ...three, mixed: 'yes' }))).toBe(true)
+    expect(sameBuild(potion({ ...three, mixed: 'yes' }), layered)).toBe(true)
+  })
+
+  test('is another one when the bottle or what is in it differs', () => {
+    const others: Params[] = [
+      { ...three, shape: 'gourd' },
+      { ...three, neck: 0.9 },
+      { ...three, glass: 'sea' },
+      { ...three, stopper: 'glass' },
+      { ...three, label: 'banner' },
+      withPours(['moonmilk', 'rosehip']),
+      withPours(['moonmilk', 'rosehip', 'frogfizz']),
+      withPours(['rosehip', 'moonmilk', 'starpetal']),
+      withPours([]),
+    ]
+    for (const values of others)
+      expect(sameBuild(layered, potion({ mixed: 'yes', ...values })), JSON.stringify(values)).toBe(
+        false,
+      )
+  })
+})
+
+describe('the spec a built bottle is drawn as, the build a frame or two behind the latest spec', () => {
+  const three = withPours(['moonmilk', 'rosehip', 'starpetal'])
+  const layered = potion({ ...three, mixed: 'no' })
+  const mixed = potion({ ...three, mixed: 'yes' })
+  const empty = potion(withPours([]))
+
+  test('a bottle that turns mixed is drawn mixed at once, with no rebuild, and one put back to its layers is layered at once', () => {
+    expect(shownSpec(layered, layered, mixed)).toBe(mixed)
+    expect(shownSpec(mixed, mixed, layered)).toBe(layered)
+    expect(shownSpec(mixed, layered, mixed).mixed).toBe(true)
+  })
+
+  test('an emptied bottle keeps drawing the mix until the empty one is built, though it was built before it mixed', () => {
+    expect(shownSpec(mixed, mixed, empty).mixed).toBe(true)
+    expect(shownSpec(mixed, layered, empty).mixed).toBe(true)
+    expect(shownSpec(mixed, empty, empty)).toBe(empty)
+  })
+
+  test("a new recipe keeps the built one's state until it is built, then takes its own", () => {
+    const other = withPours(['frogfizz', 'frogfizz', 'snailshine'])
+    const next = potion({ ...other, mixed: 'yes' })
+    expect(shownSpec(layered, layered, next).mixed).toBe(false)
+    expect(shownSpec(mixed, layered, potion({ ...other, mixed: 'no' })).mixed).toBe(true)
+    expect(shownSpec(layered, next, next)).toBe(next)
+    expect(shownSpec(layered, next, empty)).toBe(next)
   })
 })
 
