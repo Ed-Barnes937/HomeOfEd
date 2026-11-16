@@ -127,36 +127,38 @@ function rattle(t: number): PotionShow {
   }
 }
 
-const effectAt = (emit: number, age: number): Pick<PotionShow, 'emit' | 'age' | 'cap'> =>
-  emit > 0
-    ? { emit, age, cap: REST_CAP + (EFFECT_CAP - REST_CAP) * emit }
-    : { emit: 0, age: 0, cap: REST_CAP }
-
-function effect(t: number): Pick<PotionShow, 'emit' | 'age' | 'cap'> {
-  const age = t - SHOW_BEATS.pop
-  if (!(age > 0 && t < SHOW_BEATS.settle)) return effectAt(0, 0)
-  const fading = smoothstep((age - (EFFECT_SECONDS - EMIT.fall)) / EMIT.fall)
-  return effectAt(easeOutCubic(age / EMIT.rise) * (1 - fading), age)
+/** Writes the effect into `show`, its own to change: how much shows, its age and the cap it lifts. */
+function withEffect(show: PotionShow, emit: number, age: number): PotionShow {
+  const showing = emit > 0
+  show.emit = showing ? emit : 0
+  show.age = showing ? age : 0
+  show.cap = showing ? REST_CAP + (EFFECT_CAP - REST_CAP) * emit : REST_CAP
+  return show
 }
 
-/** Reduced motion: one still moment of the effect, faded in, held and faded out. */
-function stillEffect(t: number): Pick<PotionShow, 'emit' | 'age' | 'cap'> {
+function emitAt(t: number): number {
+  const age = t - SHOW_BEATS.pop
+  if (!(age > 0 && t < SHOW_BEATS.settle)) return 0
+  const fading = smoothstep((age - (EFFECT_SECONDS - EMIT.fall)) / EMIT.fall)
+  return easeOutCubic(age / EMIT.rise) * (1 - fading)
+}
+
+/** Reduced motion: the effect's one still moment is faded in, held and faded out. */
+function stillEmit(t: number): number {
   const e = t - MIX_REVEAL_SECONDS_REDUCED
   const { fade, hold, fadeOut } = REDUCED
   const emit = e < fade ? e / fade : e < fade + hold ? 1 : 1 - (e - fade - hold) / fadeOut
-  return effectAt(Math.min(Math.max(emit, 0), 1), EFFECT_STILL_AGE)
+  return Math.min(Math.max(emit, 0), 1)
 }
 
 function reducedShow(t: number, mixFrom: number, firstMix: boolean): PotionShow {
   const mix = firstMix ? mixFrom + (1 - mixFrom) * Math.min(t / MIX_REVEAL_SECONDS_REDUCED, 1) : 1
   const out = t >= MIX_REVEAL_SECONDS_REDUCED
-  return {
-    ...showRest(mix),
-    stopperLift: out ? STOPPER_OUT : 0,
-    stopperAside: out ? 1 : 0,
-    popped: out,
-    ...stillEffect(t),
-  }
+  const show = showRest(mix)
+  show.stopperLift = out ? STOPPER_OUT : 0
+  show.stopperAside = out ? 1 : 0
+  show.popped = out
+  return withEffect(show, stillEmit(t), EFFECT_STILL_AGE)
 }
 
 function aside(t: number): number {
@@ -200,7 +202,7 @@ export function potionShow(t: number, options: ShowOptions): PotionShow {
   const u = between(t, b.swirl, b.twist)
   const mixing = firstMix ? mixFrom + (1 - mixFrom) * smoothstep((u - 0.12) / 0.78) : 1
   const swirl = u <= 0 || u >= 1 ? 0 : smoothstep(u / 0.3) * (1 - smoothstep((u - 0.6) / 0.4))
-  return {
+  const show = {
     ...showRest(mixing),
     lift: LIFT * (t < b.sink ? smoothstep(t / b.swirl) : 1 - smoothstep(between(t, b.sink, b.end))),
     swirl,
@@ -208,8 +210,8 @@ export function potionShow(t: number, options: ShowOptions): PotionShow {
     ...stopper(t),
     stopperAside: aside(t),
     popped: t >= b.pop && t < b.sink,
-    ...effect(t),
   }
+  return withEffect(show, emitAt(t), t - b.pop)
 }
 
 const lerp = (a: number, b: number, w: number) => a + (b - a) * w
@@ -280,8 +282,8 @@ export class PotionShowPlayer {
     }
     if (leftAt === null) return show
     // Put back before the pop, the stopper may still pop on the way down: nothing comes out.
-    if (show.emit > 0 && leftAt - this.start < popSeconds(options))
-      show = { ...show, ...effectAt(0, 0) }
+    const pop = popSeconds(options)
+    if (t >= pop && leftAt - this.start < pop) withEffect(show, 0, 0)
     const rest = showRest(options.full ? 1 : restMix)
     const w = options.reducedMotion ? 1 : smoothstep((now - leftAt) / LEAVE_SECONDS)
     // The vortex fades where it has turned to, never unwinding.
