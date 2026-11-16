@@ -11,7 +11,7 @@ import { effectSeed } from './effectKinds.ts'
 import { EffectShow } from './EffectShow.tsx'
 import { FlourishProbe, PROBE } from './FlourishProbe.tsx'
 import { HeldRig, type HeldItem } from './HeldRig.tsx'
-import { CLAY, PotionMesh, sameBuild } from './PotionMesh.tsx'
+import { CLAY, PotionMesh, STOPPER_GROUP, sameBuild } from './PotionMesh.tsx'
 import {
   ApothecaryEnvironment,
   ApothecaryLights,
@@ -144,7 +144,7 @@ export function swingStopper(
 ) {
   const aside = show.stopperAside
   if (aside === 0 && w.drawn === 0 && show.popped === w.popped) return
-  if (!w.stopper?.parent) w.stopper = bottle?.getObjectByName('stopper') ?? null
+  if (!w.stopper?.parent) w.stopper = bottle?.getObjectByName(STOPPER_GROUP) ?? null
   const frame = w.stopper?.parent
   if (!w.stopper || !frame) return
   // The bottle's own frame as last drawn: millimetres, its axis along z.

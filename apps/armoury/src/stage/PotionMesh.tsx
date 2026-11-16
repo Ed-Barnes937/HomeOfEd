@@ -151,6 +151,9 @@ export function mixLook({ mix }: Pick<PotionSpec, 'mix'>): LayerLook | null {
 type Held = number | { readonly current: number }
 const held = (v: Held) => (typeof v === 'number' ? v : v.current)
 
+/** The stopper group's name: the close look finds it by this to swing it aside. */
+export const STOPPER_GROUP = 'stopper'
+
 /** Draws the stopper `lift` mm up its axis, turned `turn` radians about it. */
 export function poseStopper(stopper: THREE.Object3D, lift: Held, turn: Held = 0): void {
   const z = held(lift)
@@ -562,7 +565,7 @@ function GlassBottle(props: PotionMeshProps) {
         <mesh geometry={geometries.liquid} material={liquid.body} renderOrder={ORDER.body} />
         <LiquidMotes motes={look.motes} pool={built.motes} renderOrder={RENDER_ORDER.particles} />
       </group>
-      <group name="stopper">
+      <group name={STOPPER_GROUP}>
         {stopperMaterials.map(([material, order], i) => (
           <mesh
             key={`${shown.stopper}-${i}`}
@@ -627,7 +630,7 @@ function ClayBottle(props: PotionMeshProps) {
           onBeforeRender={drawLiquid}
         />
       </group>
-      <group name="stopper">
+      <group name={STOPPER_GROUP}>
         <mesh
           geometry={geometries.stopper}
           material={materials.stopper}

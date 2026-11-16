@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { asideWork, swingStopper } from './PotionCloseUpStage.tsx'
+import { STOPPER_GROUP } from './PotionMesh.tsx'
 import { type PotionShow, showRest } from './potionShow.ts'
 import { MM } from './scene.tsx'
 
@@ -16,7 +17,7 @@ function heldBottle(lean = 0) {
   frame.rotation.x = -Math.PI / 2
   frame.scale.setScalar(MM)
   const stopper = new THREE.Group()
-  stopper.name = 'stopper'
+  stopper.name = STOPPER_GROUP
   frame.add(stopper)
   held.add(frame)
   held.updateMatrixWorld(true)
