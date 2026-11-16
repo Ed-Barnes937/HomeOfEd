@@ -122,7 +122,7 @@ const lathe: Place = (r, z, nr, nz, a) => {
   ]
 }
 
-/** A closed profile turned about an axis; `place` puts each (r, z, angle) in the part's space. */
+/** A closed profile turned about the bottle's axis. */
 function revolve(b: Builder, curve: ProfilePoint[], segments: number): void {
   let along = 0
   const rings = curve.map((pt, i) => {

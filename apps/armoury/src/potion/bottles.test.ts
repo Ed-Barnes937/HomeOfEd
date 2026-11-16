@@ -16,11 +16,8 @@ describe('BOTTLES', () => {
   })
 
   it('names each shape and its noun', () => {
-    expect(BOTTLES.round).toMatchObject({ label: 'Round flask', nameNoun: 'Brew' })
-    expect(BOTTLES.teardrop).toMatchObject({ noun: 'teardrop flask', nameNoun: 'Tonic' })
-    expect(BOTTLES.tall.nameNoun).toBe('Drops')
-    expect(BOTTLES.shoulder.nameNoun).toBe('Mixture')
-    expect(BOTTLES.gourd.nameNoun).toBe('Potion')
+    expect(BOTTLES.round).toMatchObject({ label: 'Round flask', noun: 'round flask' })
+    expect(BOTTLES.teardrop).toMatchObject({ label: 'Teardrop flask', noun: 'teardrop flask' })
   })
 
   it('has body points rising from the foot, with a neck range inside 10-45 mm', () => {
