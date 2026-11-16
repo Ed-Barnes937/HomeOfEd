@@ -28,6 +28,8 @@
 // the stage held still at that moment (a stalled frame steps at most 0.05 s, as the rig and the slosh do); the pose and the liquid surface's wobble from level land beside
 // them in <name>-<view>-settle.txt. --early=1 starts the first drag that many seconds into the arrival show instead of
 // after it. --views also takes narrow (900x900) and small (360x640).
+// --popleans=59,-59 with --popat=2.4,3.1 replays a potion's show once for each lean, drags the bottle to it a second
+// in and holds it there through the pop, and shoots the held stage that many seconds into the show (poplean<deg>-f<ms>).
 /* global console, document, URLSearchParams */
 import { Buffer } from 'node:buffer'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -90,7 +92,9 @@ const wanted = only ? new Set(only.split(',')) : null
 const seconds = (list) => (list ? list.split(',').map(Number) : [])
 const flourishAt = seconds(options.flourish)
 const glintAt = seconds(options.glints)
-const flourishing = flourishAt.length + glintAt.length > 0
+const popLeans = options.popleans ? options.popleans.split(',').map(Number) : []
+const popAt = seconds(options.popat)
+const flourishing = flourishAt.length + glintAt.length + popLeans.length > 0
 // Every glint and rune wake is over this long after a flourish starts.
 const AT_REST_SECONDS = 7.5
 
@@ -241,32 +245,50 @@ try {
           )
           await page.evaluate(() => globalThis.resumeFlourish())
         }
+        const replay = async () => {
+          await at(AT_REST_SECONDS)
+          // A tap must land on the item: try a little either side of the middle.
+          for (const dx of [0, -0.06, 0.06, -0.12, 0.12]) {
+            await page.mouse.click(view.viewport.width * (0.5 + dx), view.viewport.height * 0.4)
+            const tapped = await page
+              .waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
+                polling: 10,
+                timeout: 1500,
+              })
+              .then(() => true)
+              .catch(() => false)
+            if (tapped) break
+          }
+        }
         const flourishShots = async () => {
           for (const s of flourishAt) await take(s, 'f')
           for (const s of glintAt) {
-            await at(AT_REST_SECONDS)
-            // A tap must land on the item: try a little either side of the middle.
-            for (const dx of [0, -0.06, 0.06, -0.12, 0.12]) {
-              await page.mouse.click(view.viewport.width * (0.5 + dx), view.viewport.height * 0.4)
-              const tapped = await page
-                .waitForFunction(() => (globalThis.sinceFlourish ?? 99) < 1, null, {
-                  polling: 10,
-                  timeout: 1500,
-                })
-                .then(() => true)
-                .catch(() => false)
-              if (tapped) break
-            }
+            await replay()
             await take(s, 'g')
           }
         }
         if (kind === 'potion') {
-          if (flourishing) {
-            await flourishShots()
-            writeFileSync(join(out, `${name}-${view.tag}-frames.txt`), log.join('\n') + '\n')
-          }
           const x = view.viewport.width / 2
           const y = view.viewport.height * 0.45
+          if (flourishing) {
+            await flourishShots()
+            for (const deg of popLeans) {
+              await replay()
+              await at(1)
+              const lean = aimAt(deg, LEAN_MAX)
+              await page.mouse.move(x, y)
+              await page.mouse.down()
+              await page.mouse.move(x, y - TAP_SLOP_PX)
+              await page.mouse.move(x + unsoften(lean, LEAN_MAX) * PX_PER_DEGREE, y - TAP_SLOP_PX, {
+                steps: 12,
+              })
+              for (const s of popAt) await take(s, `poplean${deg}-f`)
+              const got = await page.evaluate(() => globalThis.potionPose ?? null)
+              log.push(`poplean ${deg}: held at lean ${got?.lean.toFixed(1)} through the pop`)
+              await page.mouse.up()
+            }
+            writeFileSync(join(out, `${name}-${view.tag}-frames.txt`), log.join('\n') + '\n')
+          }
           const pose = (lean, tip, tag) => ({
             tag,
             lean: aimAt(lean, LEAN_MAX),
