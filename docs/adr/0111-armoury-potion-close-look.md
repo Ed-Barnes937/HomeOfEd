@@ -89,8 +89,18 @@ One weight, `uMix` (0 the layers, 1 the mix), blends the bands' colour and every
 towards the mix's, after `potionBand`. At rest the weight is the spec's (`mixDrawn`: 1 once `mixed`),
 so the box stage, the picture and the close look draw a mixed potion with the same code. A mixed
 bottle is not rebuilt as a one-band bottle: its three band tops, its level table and its volume
-stay, so the surface, the slosh and the mesh do not change when `mixed` flips, and the swirl needs
-both states at once anyway. The mix's glow goes through the same soft cap as a band's; the brightest
+stay, and the swirl needs both states at once anyway. So `mixed` flipping asks for no new mesh,
+and none is built: the build is keyed on everything in the spec but `mixed` (`sameBuild`), in the
+mesh and in the close look's held item. Round 1 keyed it on the spec object, and the reveal rebuilt
+an identical mesh, level table, mote pool and outline inside the cork's pop: two frames of 67 to
+83 ms on a production build at 4x CPU throttle (phone size, 120 Hz), the longest 17 ms since. The
+label still redraws as its name changes, once and not twice: the second draw waits for the label's
+font only when it is not yet loaded. The liquid's `mixed` is then no longer the built spec's: it is read as
+the liquid is drawn (`shownSpec`), from the latest spec while that asks for the built bottle and
+otherwise as last shown, so a bottle that turns mixed is mixed in the next frame and one emptied or
+poured again keeps its state until its new mesh is in. The box stage hands the mesh its latest spec
+in a holder written as the page renders, since the canvas renders a task behind the page; without
+it the box showed the layers for a frame after an early close. The mix's glow goes through the same soft cap as a band's; the brightest
 glowing mix of the 729 recipes peaks at 0.84 before it, under the 1.288 cap.
 
 **The vortex is a warp, not a simulation.** A second weight (`uVortex`; the ticket's `uSwirl` was
@@ -124,7 +134,12 @@ round by the vortex; the ribbons carry the motion.
 **Murk.** A murky mix is milky (`cloud` 0.8) with pale specks (`speck`, the motes' fourth program)
 sinking 1.2 to 2.6 mm a second on a fixed length, fading in under the surface and out above the
 floor. A marbling under the milk was tried and dropped: it doubled the trait's noise for veins that
-barely showed.
+barely showed. At the gate the first mud (`#5b5533`, lightness 0.38 to 0.48) was a black bottle in
+smoky glass and close to one in violet, and Puddle Jumper, a preset, was exactly that. Three
+changes, judged on `shots/23/r2/sheets/01-murky.png`: the mud is lifted to `#706a3d`, chroma at
+most 0.065, lightness 0.46 to 0.56 (ADR 0113), still duller and darker than every effect colour;
+Puddle Jumper stands in sea glass, a mossy pond; and smoky glass lets 0.62 through, not 0.52 (ADR
+0109), since the lifted mud alone was still near black behind it. No preset is in smoky glass now.
 
 **The clock** (`stage/potionShow.ts`, pure). `potionShow(sinceStart, { firstMix, full,
 reducedMotion })` gives every beat:
@@ -148,7 +163,8 @@ fade), and is back; 2.3 s in all, and no rattle.
 new one, timed from `flourishAt`, so the pop stays in step with the shell's reveal timer. A tap
 mid-show restarts it from what was drawn, eased over 0.3 s: the mix never goes back towards the
 layers and the vortex carries on from where it had turned. The params turning `mixed` at the reveal
-change nothing, since `mix` has been 1 since 1.48 s. A put-back eases the show to rest over 0.5 s,
+change nothing in the close look's liquid, which reads the show (`mix` has been 1 since 1.48 s);
+the label takes its new name, and the box stage's bottle behind the dialog turns mixed. A put-back eases the show to rest over 0.5 s,
 mixed if three were in (the shell mixes the potion on closing), the vortex fading where it stands;
 at once under reduced motion. Whether a show is a first mix is decided from the params when its
 flourish starts.
