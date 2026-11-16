@@ -1,10 +1,12 @@
 # 0111 - armoury potion close look: the hold, the slosh and the show's seams
 
-- **Status:** Accepted (ticket 14; ticket 23 adds the mix; ticket 15 completes it with the uncorking and its effects)
+- **Status:** Accepted (ticket 14; ticket 23 added the mix; ticket 15 completed it with the uncorking and its effects)
 - **Date:** 2026-11-14
 - **Related:** [ADR 0105](0105-armoury-upright-items-on-the-stage-rigs.md) (the upright hold),
   [ADR 0107](0107-armoury-bottle-generator.md) (the tipped level table, "The stage's level seam"),
-  [ADR 0109](0109-armoury-potion-look.md) (the liquid's `setSurface`),
+  [ADR 0109](0109-armoury-potion-look.md) (the liquid's `setSurface`, no post pass at rest),
+  [ADR 0082](0082-armoury-material-zones.md), [ADR 0083](0083-armoury-glowing-gems.md) and
+  [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md) (the bloom cap and its exceptions),
   [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the show on arrival, the reveal timer).
 
 ## Context
@@ -150,7 +152,7 @@ reducedMotion })` gives every beat:
 | swirl | 0.4 to 1.6 | the vortex rises over the first 0.36 s and falls over the last 0.48 s; on a first mix `mix` runs 0 to 1 between 0.54 and 1.48 s |
 | twist | 1.6 to 1.9 | the stopper turns a quarter turn and works 0.15 of its plug loose |
 | pop | 1.9 (`MIX_REVEAL_SECONDS`) | the stopper is out, 1.3 plug depths in 0.2 s, and bobs; `popped` is true until the sink |
-| live | to 4.4 | ticket 15's effect (`emit`, `age` and `cap` rest at 0, 0 and the resting cap here) |
+| live | to 4.4 | the effect ("The uncorking" below); the stopper hangs aside of the neck and is back above it by 4.4 |
 | settle | 4.4 to 4.9 | the stopper goes back and turns back |
 | sink | 4.9 to 5.2 | the bottle sinks back to the hold |
 
@@ -194,6 +196,138 @@ touch was measured: it starts no flourish), so a close frame of three layers is 
 the pop; held frames stop the stage's clock but not the shell's timer, so a held frame's label and
 shade can show the reveal early.
 
+### The uncorking (ticket 15)
+
+**The window.** The effect lives from the pop (1.9 s, the reveal) until the stopper sets off back
+(4.4 s): 2.5 s, `EFFECT_SECONDS`. The clock gives it three numbers. `age` is the seconds since the
+pop, from 0 at every pop. `emit` is how much of it shows: up over 0.8 s, fast at first (a third
+after 0.1 s), and down over the last 0.35 s. `cap` is the brightest a particle may be. Outside the
+window they rest at 0, 0 and the resting cap, and fewer than three ingredients never leave rest.
+
+**Seven kinds, one system** (`stage/effectKinds.ts`, pure and three-free). A kind is a program
+`(seed, i, age, strength)` that writes one particle: its place in the neck's frame, its size, its
+alpha, a shape code, which of the effect's colours it takes, and whether it has left the neck yet.
+The stage has no branch per kind; it draws whatever comes back, and a shape is only how one sprite
+is shaded. The seed is the recipe's, so each mix has its own arrangement and a replay repeats it.
+
+| Kind | What its particles do | Particles at strength 1, 2, 3 |
+|---|---|---|
+| floating | see-through bubbles swell out, drift up and to the sides, wobble, and pop one by one | 7, 11, 15 |
+| sparkling | four-pointed glitter on arcs: up, over and down to the lip, twinkling | 110, 190, 280 |
+| dreamy | soft five-pointed stars rise slowly, sway, twinkle and fade | 6, 9, 12 |
+| glowing | motes spiral out of the neck, slow, and hover, pulsing | 14, 22, 30 |
+| whirling | one ribbon: points a few milliseconds apart on one widening helix, longer with strength | 120, 200, 280 |
+| whiffy | one puff of 4, 5 or 6 smoke sprites that swells and fades, with 5, 8 or 11 small wisps above it | 9, 13, 17 |
+| murky | one fat bubble, then 7 droplets | 8 |
+
+Strength changes the count (and the ribbon's length), nothing else. Colours are the effect's own
+(`potionEffect` of the potion as mixed: the mixed colour first, then its carriers'), cycled by
+particle; the ribbon takes them in bands along its length.
+
+**Murky's blorp.** One fat bubble squeezes out of the neck over 0.6 s, wobbling (a squash of up to
+a quarter, dying away), rises lazily, hangs at full size above the lip from about 1.5 s, and at
+1.7 s pops into seven droplets that fall and are gone by 2.2 s. It is not a failure because it is
+played as fully as any effect: the same pop, the same system, in the potion's own mud colour, with
+a start, a hang and a punchline. A failed effect would be nothing, or less of something; this is
+one big deliberate thing, the joke the name and the lore already tell (E13, E16).
+
+**Bounds**, all asserted over every kind, strength and frame of the show. At most 300 points (the
+buffers hold exactly that; the most a kind asks for is 280) and at most six smoke sprites. A
+sprite is at most 64 CSS px across on a phone 844 px tall, and the same share of other screens.
+Every particle stays in a box in the neck's frame (1 to each side, 1 up, 0.25 down, in units of
+the reach below). Every alpha is 0 from 2.45 s after the pop, before the stopper moves.
+
+**In the frame** (`effectReach`, `placeParticle`, pure). The box reaches 0.42 bottle heights up
+and 0.46 to each side of the neck, or as far as the frame's edge less a margin of 1.2 percent of
+its height, whichever is less. A particle is placed so its whole sprite is inside that reach and
+inside the frame. On desk the lip of a tall or teardrop bottle is about 130 px under the top of
+the window, so the box there is low and wide, and the programs are written for that: they spread
+sideways as much as up. A side with less than 0.4 of the other side's room is not used; its
+particles go out the other way instead. Squeezing them was tried first and drew a bright column
+against the edge at a full lean on a 360 px phone.
+
+**Straight up, whatever the bottle does.** The points are drawn in the scene's frame, not the
+bottle's. A particle takes the neck's place, and the reach the frame allowed there, at the moment
+it leaves the neck, and keeps both. So the effect rises straight up at any lean; a drag during
+the effect moves only what has not left yet, and the hold bringing the bottle upright afterwards
+moves nothing that is out. Depth only orders the particles against the stopper: each is slid
+along its line of sight, so it stays where it was placed on screen. The rule ticket 11 learnt
+holds: a position is a function of `age` and of what was fixed as the particle left, and `age`
+restarts at each pop.
+
+**The stopper is moved aside.** Ticket 23 left the popped stopper hanging 1.3 plug depths straight
+above the lip, on the effect's axis, and on desk its top is 20 px from the top of the window. So
+one of ticket 23's beats changes: from 0.06 s after the pop (the plug is clear of the lip by
+0.07 s) the stopper swings aside over 0.4 s, hangs there leaning out, and swings back over the
+last 0.4 s before 4.4 s, so the settle and the sink are as ticket 23 left them (`stopperAside`
+in the clock; shown aside without travelling under reduced motion). The stage swings it across
+the screen by 2.6 neck radii and 3 mm, to the right, or to the upper side of a bottle leaning
+more than about 7 degrees, decided at the pop. Weighed and not taken: emitting round the stopper
+(the plume's axis is inside a cork, and nothing fits above it on desk) and framing lower (the
+held position is the rig's, shared with the wand and the sword, and the lift is ticket 23's).
+The stage reaches the stopper's group in the mesh by its name, as the pose probe reaches the
+glass, because the mesh takes only a lift and a turn; a prop on the mesh would say it better.
+At a full lean on a 360 px phone the popped stopper is partly past the screen's edge, as it was
+before it swung (the pop takes it along the bottle's axis); the swing brings it in, not all the way.
+
+**The bloom route: no composer.** The effect is its own capped sprites, each adding its light
+with its own soft falloff, and no post pass is ever mounted. A composer only while the show runs
+was the other option, and it fails the one test set for the choice: ADR 0109 found that through a
+composer over a transparent canvas the glass goes dull, so mounting one at the pop and removing it
+at the end would change the glass at exactly those two moments. It would also compile its passes
+and allocate its targets in the frame of the pop, and run full-screen passes on a phone for the
+length of the effect. With no pass, the canvas before, during and after the show is drawn by the
+same pipeline. Sprites blend as the liquid's motes do (added, premultiplied), each shape covering
+what is behind it by its own share: none for a light, most for smoke and the murky bubble's skin.
+A light (glitter, a star, the ribbon) takes its colour at full strength, so a dark potion's lights
+are as bright as a pale one's, and keeps its body under about 0.6 before the tone map: ACES washes
+anything much brighter towards white, and the first sheets' glitter and stars were white whatever
+the potion. Only their small cores go past it.
+
+**The bloom exception** (against ADRs 0082, 0083 and 0100).
+
+- **What and where:** only the effect's sprites, inside the box above the neck. Their cap is the
+  resting cap plus `emit` times the way to `EFFECT_CAP`, twice the threshold, the sword glint's
+  ceiling. It is the effect material's own uniform: the glass, the liquid, its motes, the stopper
+  and the label keep `0.92 * BLOOM_THRESHOLD` throughout.
+- **How long:** 2.5 s from the pop (2 s under reduced motion), and only in the close look.
+- With no pass that reads brightness, nothing blooms in the sword's sense: past the resting cap a
+  sprite is only nearer white under ACES. So the worry ticket 11 left (a fleck's flash and the
+  clinging beads' glint can sum above the resting cap) has nothing to trip.
+
+**Reduced motion.** `age` is held at one still moment (`EFFECT_STILL_AGE`, 1.2 s, when every kind
+is in full show and the murky bubble hangs) and `emit` fades it in over 0.3 s, holds 1.2 s and
+fades out over 0.5 s, from the reveal at 0.3 s, inside the stopper's window. Nothing travels; the
+twinkles are functions of `age`, so they are still too.
+
+**Nothing is acted out.** The bottle, the room and the shell do nothing for an effect: no lean,
+no shake, no flash, no sound. What differs between kinds is the program and the sprite's shading.
+
+**A tap and a put-back.** A tap during the effect fades the old one over 0.3 s where it is, its
+`age` running on, and the new show lets out its own at its pop. A put-back after the pop fades
+the effect in place over 0.5 s while the bottle flies down. A put-back before the pop can still
+pop the stopper on the way (ticket 23), and nothing comes out.
+
+**Cost.** One geometry (three attributes of 300) and one material, built when the close look
+mounts and drawn from its first frame with every point clipped away, so the program is compiled
+with the stage and the pop compiles and builds nothing. During the effect a frame runs at most
+280 programs and uploads three small buffers, with no allocation; at rest it is one comparison.
+
+- The frame of the pop (production build under `vite preview`, phone 390x844 at DPR 3, 4x CPU
+  throttle, ticket 23's `flip-prod.mjs`: the longest frame from the reveal to 300 ms after it).
+  The display is 120 Hz, so the figure moves in steps of 8.3 ms. Before, on the day's machine:
+  two refreshes (15.8 to 17.5 ms) in 11 of 14 runs and three (24.1 to 25.8 ms) in 3. After: two
+  (15.6 to 17.9 ms) in 28 of 30 runs and three (24.7 and 24.9 ms) in 2, over first mixes into
+  dreamy, sparkling (280 points), whirling (280) and floating. No frame over 25 ms anywhere in
+  the effect.
+- Frame interval with vsync off (ticket 14's method, phone size, medians of five): during the
+  effect 1.83 to 2.29 ms across the seven kinds, against 1.82 to 2.23 ms for the same bottles at
+  rest after it: under 0.1 ms.
+
+**The shots script** takes `--popleans=59,-59 --popat=2.4,3.1`: for each lean it replays the
+show, drags the bottle to the lean a second in, holds it through the pop and shoots the held
+stage at each moment.
+
 ## Consequences
 
 - A child's first drag always moves the bottle, even in the first second of the show.
@@ -202,9 +336,9 @@ shade can show the reveal early.
   holds the bottle; a lift beat (rise a little more) is a position offset on top and can play under
   a drag. A show longer than 4 s sets `flourishSeconds` in `potionHeldItem` to match. The swirl is
   a shading change and needs nothing from the slosh: the surface normal stays the one seam.
-- **For ticket 15 (the uncorking and its effects):** a child holding a drag during the pop tips the
-  effect's box with the bottle; let go, the hold brings the bottle upright within 0.3 s. Effects
-  should stay correct (in their box, on screen) at a lean, not assume upright.
+- **For ticket 15 (the uncorking and its effects):** a child holding a drag during the pop leans
+  the neck the effect leaves by; let go, the hold brings the bottle upright within 0.3 s. The
+  effect rises straight up in the scene from wherever the neck is ("The uncorking").
 - **For ticket 15, from the mix:** `potionShow` already returns `emit`, `age` and `cap` at rest
   values and `popped` from the pop to the sink; fill them in the clock, and read them from the
   `PotionShow` the stage's `Show` writes each frame (`drawn.show.current`). The neck is 6 percent of
