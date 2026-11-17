@@ -30,7 +30,7 @@ export const potionPresets: { name: string; params: Params }[] = [
     params: recipe(['bluebell', 'starpetal', 'emberroot'], 'yes', {
       shape: 'round',
       neck: 0.3,
-      glass: 'sea',
+      glass: 'amber',
       stopper: 'glass',
       label: 'banner',
     }),

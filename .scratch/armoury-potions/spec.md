@@ -329,7 +329,7 @@ label, every ingredient, every one of the seven outcomes and one secret blend:
 | # | Name | Recipe (pour order) | Mixed | Bottle and finish | Outcome |
 |---|---|---|---|---|---|
 | 0 | Rosy Moonrise (first visit) | moonmilk, rosehip, starpetal | no | teardrop, neck 0.4, clear, cork, round | (dreamy once mixed) |
-| 1 | Early Riser | bluebell, starpetal, emberroot | yes | round, 0.3, sea, glass stopper, banner | Sunrise in a Bottle |
+| 1 | Early Riser | bluebell, starpetal, emberroot | yes | round, 0.3, amber, glass stopper, banner | Sunrise in a Bottle |
 | 2 | Puddle Jumper | frogfizz, bluebell, puffcap | yes | tall, 0.6, sea, cork, tag | murky |
 | 3 | Brewing Weather | thundercloud, snailshine, moonmilk | yes | shoulder, 0.5, violet, cork, none | whirling |
 | 4 | Hearth Warmer | emberroot, emberroot, puffcap | yes | gourd, 0.7, amber, cork, round | whiffy |
@@ -755,3 +755,6 @@ ticket or decision that settled it (E and O entries are in `decisions.md`). Writ
 22. **The wand and sword pixel baseline** is `shots/baseline-2/a/`, re-shot at 2d238af4, not
     ticket 04's `shots/04/baseline/` (ticket 18's Comments, 2026-11-14).
 23. **The shots script times a potion's close frames from the lift,** not from the tap (O24).
+24. **Early Riser is in amber glass, not sea green.** Sea green turned its orange-gold mix lime
+    beside a gold card that promises a sunrise. The preset row above already says so (ticket
+    18's gate).
