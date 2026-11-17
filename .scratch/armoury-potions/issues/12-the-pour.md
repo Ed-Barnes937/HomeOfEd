@@ -1,6 +1,6 @@
 # 12 - The pour
 
-**Status:** ready-for-agent (waits for tickets 23 and 14)
+**Status:** built and reviewed on `potions/12-pour`, local only; waits for Ed to say whether it joins the first PR or follows it
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** 23 (it takes `potionMaterials.ts`, `PotionMesh.tsx` and `PotionStage.tsx` after
@@ -112,3 +112,4 @@ reduced motion is instant.
 - 2026-11-13 orchestrator, from ticket 09: `stopperLift` takes a number or a `{ current: number }` holder in mm along the axis (0 is seated); write the holder from a `useFrame`, never React state. `levels` (each band's top in mm, bottom first) is read every frame; leave it unset to get the volume-keeping levels at the current tilt.
 - 2026-11-14 orchestrator, from the reviews of ticket 11 (`reviews/11-r1.md`, `reviews/11-r2.md`): the bubbles of a rising top band are continuous by construction (tested in `traits.test.ts`, "the bubbles' rise"). In an unfrozen pour, watch the edge fade of the motes' rest points as the top climbs past them, and the clinging beads appearing as the level passes them on the glass (it should look like liquid wetting the glass).
 - 2026-11-16 orchestrator: built straight after the first version (E28, O28). From ticket 23 and its review: a pour never meets `uMix` above 0, and `setMixed(null)` covers fewer than three; a mote's band is still chosen by its rest height; the box draws from `built`, a frame or two behind the params, on every pour, and ticket 23's no-rebuild fix must be left as it is.
+- 2026-11-17 orchestrator: built (Fable) on `potions/12-pour`, 11 commits to f3a5302f. Its one review (`reviews/12-r1.md`, Fable): code PASS, visual PASS, no must-fix; the two should-fixes and the docs lines were done in a tidy round and read by the orchestrator. Checks: lint, typecheck, vitest 2172, CT 189 (before the tidy round, which moved one constant and trimmed comments), build. Frames: `shots/12/r1/`. Left the ticket in three places, all in the spec's Departures: the cascade comes from the params, not `arrivals` (Try another with the pours locked pours nothing); `PotionMesh`'s `levels` may be a function; the clock also returns `stopperAside`, `head` and `tail`. Judged from the code, not a frame: a tap on the bottle mid-pour (the close look opens on the finished bottle); it is in Ed's phone checks. Not merged into the epic branch: that waits for Ed's call.
