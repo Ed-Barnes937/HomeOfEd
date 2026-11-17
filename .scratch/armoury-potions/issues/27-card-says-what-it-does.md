@@ -1,6 +1,6 @@
 # 27 - No string to the card, and the card says what the potion does
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** task
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none
@@ -93,3 +93,4 @@ whose line is the longest, at 360 px wide and on a desk, plus a gold blend's car
 shops.
 
 ## Comments
+- 2026-11-17 orchestrator: done, merged from `potions/27-card-words` (2f987343, Sonnet). Lint, typecheck, Vitest 2128 and CT 189 green on the merged tree (one re-run for the known "at 1350px" flake). The orchestrator read the diff and the shots (`shots/27/`) in place of a reviewer. Longest line 131 characters, cap 140. Departures: the phone's floor reserve went from 176px to 192px so the hint clears the sheet (the bottle is a few px shorter on a phone); the footing's `tie` data went with the string. Answered: a murky secret blend ("Bottom of the Pond") keeps murky's words.
