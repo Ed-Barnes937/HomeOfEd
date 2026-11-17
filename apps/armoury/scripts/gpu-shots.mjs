@@ -30,13 +30,14 @@
 // after it. --views also takes narrow (900x900) and small (360x640).
 // --popleans=59,-59 with --popat=2.4,3.1 replays a potion's show once for each lean, drags the bottle to it a second
 // in and holds it there through the pop, and shoots the held stage that many seconds into the show (poplean<deg>-f<ms>).
+// --browser=firefox or webkit shoots in that browser instead, on whatever WebGL it gives headless (often software).
 /* global console, document, URLSearchParams */
 import { Buffer } from 'node:buffer'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import process from 'node:process'
 
-import { chromium } from '@playwright/test'
+import { chromium, firefox, webkit } from '@playwright/test'
 
 const args = process.argv.slice(2)
 const flags = new Set(args.filter((a) => a.startsWith('--') && !a.includes('=')))
@@ -122,11 +123,15 @@ const SETTLE_MS = 3500
 // A screenshot waits its turn when other work is using the GPU; Playwright's own limit is 30 s.
 const ACTION_TIMEOUT_MS = 120000
 
-const browser = await chromium.launch({
-  headless: true,
-  channel: 'chromium',
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
-})
+const browserName = options.browser ?? 'chromium'
+const browser =
+  browserName === 'chromium'
+    ? await chromium.launch({
+        headless: true,
+        channel: 'chromium',
+        args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'],
+      })
+    : await { firefox, webkit }[browserName].launch({ headless: true })
 try {
   for (const [name, { kind, params }] of Object.entries(set)) {
     if (wanted && !wanted.has(name)) continue
@@ -153,7 +158,8 @@ try {
         const info = gl?.getExtension('WEBGL_debug_renderer_info')
         return info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : 'none'
       })
-      if (!/ANGLE Metal/.test(renderer)) throw new Error(`not the real GPU: ${renderer}`)
+      if (browserName === 'chromium' && !/ANGLE Metal/.test(renderer))
+        throw new Error(`not the real GPU: ${renderer}`)
 
       const item = page.locator('[data-testid="counter"] button[aria-haspopup="dialog"]')
       await item.locator('canvas').waitFor()

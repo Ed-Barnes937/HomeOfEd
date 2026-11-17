@@ -139,6 +139,25 @@ describe('the effect as it is drawn', () => {
     }
   })
 
+  it('keeps the canvas premultiplied: each sprite covers at least its own light, blended over', () => {
+    const { material } = createField()
+    expect(material.blending).toBe(THREE.CustomBlending)
+    expect([
+      material.blendSrc,
+      material.blendDst,
+      material.blendSrcAlpha,
+      material.blendDstAlpha,
+    ]).toEqual([
+      THREE.OneFactor,
+      THREE.OneMinusSrcAlphaFactor,
+      THREE.OneFactor,
+      THREE.OneMinusSrcAlphaFactor,
+    ])
+    expect(material.fragmentShader).toContain(
+      'gl_FragColor = vec4(lit, max(a * cover, max(max(lit.r, lit.g), lit.b)));',
+    )
+  })
+
   it('never grows its buffers', () => {
     const field = createField()
     const before = field.geometry.getAttribute('position').array

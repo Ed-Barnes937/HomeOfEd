@@ -52,7 +52,7 @@ void main() {
 const shape = (name: keyof typeof SHAPES) => `${SHAPES[name]}.5`
 
 // One sprite per particle, drawn by its shape. Each adds its light and covers what is behind it by
-// `cover`: none for a light, most for smoke and a murky bubble's skin.
+// `cover`, or by its own light where that is more, so the canvas's alpha never falls below its colour.
 const FRAGMENT = /* glsl */ `
 uniform float uCap;
 varying vec3 vColour;
@@ -135,7 +135,8 @@ void main() {
   gl_FragColor = vec4(potionCap(col, uCap), 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
-  gl_FragColor = vec4(gl_FragColor.rgb * a, a * cover);
+  vec3 lit = gl_FragColor.rgb * a;
+  gl_FragColor = vec4(lit, max(a * cover, max(max(lit.r, lit.g), lit.b)));
 }
 `
 
