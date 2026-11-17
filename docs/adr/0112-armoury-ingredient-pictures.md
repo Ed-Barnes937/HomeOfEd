@@ -115,9 +115,10 @@ and settings he used were not recorded. No cell was re-done and nothing was repa
 re-centred: the sheet was cut as supplied.
 
 - **The sheet.** 2048 x 2048 px, a baseline JPEG (the prompt asked for a PNG; the cutter takes
-  both), with no EXIF segment, so no rotation flag. The original is Ed's copy, kept outside
-  the repo at `.scratch/armoury-potions/art/ingredients-sheet.jpg`, beside `prompt.md`,
-  `reference.png` and `layout-guide.png`. Its sha256 is
+  both), with no EXIF segment, so no rotation flag. The original is committed at
+  `apps/armoury/art/ingredients/ingredients-sheet.jpg`, beside `prompt.md`, `reference.png`
+  and `layout-guide.png`; nothing in that folder is served. Cutting it again reproduces the
+  nine committed pictures byte for byte. Its sha256 is
   `d841794b0477f5f1dc51f5d36a7366cf1614534e035c16406b2f2219360d18ce`.
 - **The cut.** `pnpm --filter armoury run ingredients:cut <sheet>`, exit 0: Emberroot 5.3 KB,
   Starpetal 7.3, Frogfizz 5.7, Snailshine 5.2, Bluebell dew 5.6, Thundercloud 3.4, Moonmilk
