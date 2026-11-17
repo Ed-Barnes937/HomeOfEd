@@ -1,6 +1,6 @@
 # 28 - The uncorking's effect shows in the air in every browser
 
-**Status:** ready-for-agent
+**Status:** done
 **Type:** bug
 **Spec:** [../spec.md](../spec.md)
 **Blocked by:** none
@@ -68,3 +68,4 @@ merge.
 Changing what the effects are or how they move, `src/apothecary/`, `src/potion/`.
 
 ## Comments
+- 2026-11-17 orchestrator: done, merged from `potions/28-effect-every-browser` (158d8c5b, Opus). The fault reproduced in WebKit's live show (sparkles and the reduced-motion arrangement vanish in the air, only those over the cork remain), not in Playwright's Firefox. Cause: lights left colour above alpha 0 in the premultiplied canvas; WebKit drops such pixels. Fix: each sprite's alpha is at least its brightest channel. Chromium stays close to `shots/15/r1` (whiffy's bright point in its smoke is a little softer). The orchestrator read the diff and the sheets (`shots/28/`) in place of a reviewer. After both merges: lint, typecheck, Vitest 2129, CT 189 of 189. Open: Ed to confirm in Zen itself, where the fault was reported and never reproduced; `LiquidMotes` has the same alpha line but sits over opaque liquid, left alone; the wand's burst and trail in Firefox and WebKit are ticket `.scratch/armoury/issues/07`.
