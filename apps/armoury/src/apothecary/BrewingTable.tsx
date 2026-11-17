@@ -11,7 +11,7 @@ import { StageBoundary } from '../shop/StageBoundary.tsx'
 import { Tag } from '../shop/Tag.tsx'
 import { useDisplay } from '../shop/useDisplay.ts'
 import { useStages } from '../stage/stage.ts'
-import { BottleShadow, NeckTie } from './BottleFooting.tsx'
+import { BottleShadow } from './BottleFooting.tsx'
 import styles from './BrewingTable.module.scss'
 import { recipeCard } from './recipeCard.ts'
 import { RoomWall } from './RoomWall.tsx'
@@ -37,7 +37,7 @@ function furthestReach() {
 
 const rgbOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')
 
-/** The potion shop's scene: the bottle on the brewing table by the candle, its recipe card tied to its neck. */
+/** The potion shop's scene: the bottle on the brewing table by the candle. */
 export function BrewingTable({ view, item, reducedMotion, stageRef, onRename }: SceneProps) {
   const Stage = useStages(view.item.kind)?.Box
   const display = useDisplay({ stageRef })
@@ -48,8 +48,6 @@ export function BrewingTable({ view, item, reducedMotion, stageRef, onRename }: 
 
   const placing = {
     '--base-line': BASE_LINE,
-    '--tie-h': footing.tie.heightMm / SLOT_MM,
-    '--tie-w': footing.tie.halfWidthMm / SLOT_MM,
     '--glow-x': footing.glow.xMm / SLOT_MM,
     '--glow-y': footing.glow.yMm / SLOT_MM,
     '--glow-w': footing.glow.rxMm / SLOT_MM,
@@ -85,21 +83,10 @@ export function BrewingTable({ view, item, reducedMotion, stageRef, onRename }: 
               </StageBoundary>
             )}
           </span>
-          <NeckTie footing={footing} className={styles.tie} />
         </button>
 
         <div className={styles.card} data-gold={card.gold || undefined}>
           <div className={styles.tagBox}>
-            <svg
-              className={styles.twine}
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <path className={styles.twineShade} d="M 0 100 C 30 92, 78 52, 100 0" />
-              <path className={styles.twineStrand} d="M 0 100 C 30 92, 78 52, 100 0" />
-              <path className={styles.twineTwist} d="M 0 100 C 30 92, 78 52, 100 0" />
-            </svg>
             <div className={styles.paper}>
               <Tag
                 number={card.number}

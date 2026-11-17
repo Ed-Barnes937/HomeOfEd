@@ -22,8 +22,6 @@
     calc(var(--card-w) + 20px),
     calc(var(--bottle-x) - var(--card-left) - var(--u) * 10)
   );
-  --hole-x: 24px;
-  --twine: var(--string);
 
   position: relative;
   height: 100%;
@@ -59,8 +57,7 @@
   }
 }
 
-.shadow,
-.tie {
+.shadow {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -110,8 +107,7 @@
 
 .display[data-empty] .stageSlot,
 .display[data-empty] .shadow,
-.display[data-empty] .glow,
-.display[data-empty] .tie {
+.display[data-empty] .glow {
   visibility: hidden;
 }
 
@@ -128,7 +124,6 @@
     --paper-ink-soft: var(--gold-ink-soft);
     --paper-ink-faint: var(--gold-ink-faint);
     --string: var(--gold-string);
-    --twine: var(--gold-string);
   }
 }
 
@@ -143,39 +138,6 @@
   filter: drop-shadow(1.5px 0 0 var(--gold-edge)) drop-shadow(-1.5px 0 0 var(--gold-edge))
     drop-shadow(0 1.5px 0 var(--gold-edge)) drop-shadow(0 -1.5px 0 var(--gold-edge))
     drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
-}
-
-// From the card's hole up to the bottle's neck, where the string is tied.
-.twine {
-  position: absolute;
-  left: var(--hole-x);
-  bottom: 50%;
-  width: calc(var(--bottle-x) - var(--slot) * var(--tie-w) - var(--card-left) - var(--hole-x));
-  height: calc(var(--card-top) - var(--floor) + var(--slot) * var(--tie-h) + 50%);
-  overflow: visible;
-  fill: none;
-  pointer-events: none;
-
-  path {
-    vector-effect: non-scaling-stroke;
-    stroke-linecap: round;
-  }
-}
-
-.twineShade {
-  stroke: rgba(30, 16, 12, 0.85);
-  stroke-width: 3.6;
-}
-
-.twineStrand {
-  stroke: var(--twine);
-  stroke-width: 2.4;
-}
-
-.twineTwist {
-  stroke: rgba(70, 46, 24, 0.7);
-  stroke-width: 2.2;
-  stroke-dasharray: 1 3.5;
 }
 
 // Beside the card, wrapping short of the scene's right edge.
@@ -227,12 +189,11 @@
     --slot: min(224px, 50cqh, calc((var(--floor) - var(--header-clear)) * 1.35));
     --bottle-x: 60cqw;
     --card-rise: calc((var(--bottle-x) - var(--card-left)) * tan(2.2deg));
-    --floor: min(62cqh, calc(100cqh - 176px - var(--card-rise)));
+    --floor: min(62cqh, calc(100cqh - 192px - var(--card-rise)));
     --card-left: 14px;
     --card-w: calc(100cqw - 28px);
     --tag-width: 100%;
     --card-top: calc(var(--floor) + var(--u) * 24 + var(--card-rise));
-    --hole-x: 18px;
   }
 
   .hint {

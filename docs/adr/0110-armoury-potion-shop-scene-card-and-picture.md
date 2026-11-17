@@ -1,4 +1,4 @@
-# 0110 - armoury potion shop: the brewing table drawn in CSS and SVG, a recipe card on string, the picture over its own ground
+# 0110 - armoury potion shop: the brewing table drawn in CSS and SVG, a recipe card, the picture over its own ground
 
 - **Status:** Accepted
 - **Date:** 2026-11-13
@@ -109,8 +109,8 @@ pools inside the shadow in the potion's glow colour (CSS, `--glow-rgb`).
 percent (CSS keyframes, about 4 and 5 seconds). Nothing else in the scene moves,
 and under reduced motion neither does the candle.
 
-**The recipe card.** The shared `Tag`, tied by drawn string from its hole to the
-bottle's neck, where a small knot wraps the neck over the stage. The card says
+**The recipe card.** The shared `Tag`, standing free on the table (no string runs
+from it to the bottle). The card says
 what `recipeCard` says: the number, the name (the generator's until the player
 renames it; before the mix that is the list of its layers, "Moonmilk, Rosehip and
 Starpetal", and the revealed name after), the tag line, and `gold` when `isGold`
@@ -181,5 +181,9 @@ ends 2 px inside the window (`preserveAspectRatio` `xMidYMax`).
 - `capture()` must draw over `PICTURE_GROUND`, or return a clear background.
 - The card is gold when `isGold` holds, a mixed secret blend; an unmixed bottle
   with a blend's ingredients shows its layers on a cream card until the mix.
+- A mixed potion that is not murky has a tag line that says what it does:
+  `{what[outcome][strength]}, {until[main]}. It leaves you with {adjective[x]} {thing[y]}.`
+  with `x` and `y` the other two ingredients in wheel order, so each of the 144
+  such recipes has its own line; murky, unmixed and empty keep their words.
 - A new name or tag line that wraps to more lines than today's longest needs
   the room kept below the foot to grow, and `LONGEST_TEXTS` in the iwft to name it.

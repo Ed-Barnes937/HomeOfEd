@@ -60,17 +60,6 @@ describe('bottleOnTable', () => {
     }
   })
 
-  it('ties the string round the neck, below the lip and above the body', () => {
-    for (const shape of ['round', 'teardrop', 'tall', 'shoulder', 'gourd'])
-      for (const neck of [0, 1]) {
-        const s = spec(shape, neck)
-        const { tie, widthMm } = bottleOnTable(s)
-        expect(tie.halfWidthMm).toBeLessThan(widthMm / 4)
-        expect(tie.heightMm).toBeGreaterThan(s.heightMm * 0.45)
-        expect(tie.heightMm).toBeLessThan(s.heightMm - 20)
-      }
-  })
-
   it("gives the middle of the shadow's run across the table, for a scene to keep in view", () => {
     for (const shape of ['round', 'teardrop', 'tall', 'shoulder', 'gourd']) {
       const { shadow, shadowMidMm, footMm } = bottleOnTable(spec(shape, 1))

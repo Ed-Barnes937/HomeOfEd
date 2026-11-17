@@ -325,6 +325,14 @@ const LONGEST_TEXTS: [Params, string][] = [
     { ...withPours(['frogfizz', 'thundercloud', 'thundercloud']), shape: 'shoulder', mixed: 'yes' },
     'Sparkling Thundercloud Wonder',
   ],
+  [
+    { ...withPours(['starpetal', 'bluebell', 'bluebell']), shape: 'shoulder', mixed: 'yes' },
+    'Sparkling Bluebell Wonder',
+  ],
+  [
+    { ...withPours(['moonmilk', 'rosehip', 'rosehip']), shape: 'shoulder', mixed: 'yes' },
+    'Pink Ribbons',
+  ],
 ]
 
 for (const size of [
