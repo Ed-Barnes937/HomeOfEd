@@ -59,3 +59,12 @@ This is a likely cause, not a proven one: no run showed the early reading.
   nowhere would need its own answer.
 
 ## Comments
+
+- 2026-11-17 (armoury-potions ticket 18, fix round): the page object changed, the app did
+  not. `StreetPom.showOnStreet` now reads the street's `scrollLeft` before the tap, and
+  `settledScroll` waits for it to move from there before it takes two equal readings as "at
+  rest", so "has not started" no longer reads as "has stopped". Shown once in a scratch test
+  with the page's `scrollTo` held back 300 ms and the last look taken after the scroll had
+  run: the old helper failed 3 of 3 (the door at ratio 0), the new one passed 3 of 3. The
+  street suite then passed 540 of 540 (`--repeat-each=10`, twice). The sighting itself was
+  never reproduced, so this stays open until the failure has not been seen again.

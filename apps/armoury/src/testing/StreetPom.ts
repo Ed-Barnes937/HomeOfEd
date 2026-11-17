@@ -113,8 +113,9 @@ export class StreetPom extends BasePage {
 
   /** Taps a shop's signpost and waits for the street to come to rest. */
   async showOnStreet(shopName: string): Promise<void> {
+    const from = await this.shops().evaluate((el) => el.scrollLeft)
     await this.signpost(shopName).click()
-    await this.settledScroll()
+    await this.settledScroll(from)
   }
 
   async verifyTitleInView(): Promise<void> {
@@ -237,15 +238,15 @@ export class StreetPom extends BasePage {
     return this.page.getByRole('button', { name: `Show ${shopName} on the street` })
   }
 
-  /** How far along the street the view is, once a smooth scroll has come to rest. */
-  private settledScroll(): Promise<number> {
+  /** How far along the street the view is, once a smooth scroll away from `from` has come to rest. */
+  private settledScroll(from: number): Promise<number> {
     return this.shops().evaluate(
-      (el) =>
+      (el, start) =>
         new Promise<number>((resolve) => {
-          let last = el.scrollLeft
+          let last = start
           const check = () =>
             setTimeout(() => {
-              if (el.scrollLeft === last) resolve(last)
+              if (el.scrollLeft !== start && el.scrollLeft === last) resolve(last)
               else {
                 last = el.scrollLeft
                 check()
@@ -253,6 +254,7 @@ export class StreetPom extends BasePage {
             }, 120)
           check()
         }),
+      from,
     )
   }
 
