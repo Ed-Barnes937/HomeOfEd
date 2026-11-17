@@ -1,44 +1,47 @@
 # armoury
 
-A street with two shops where a child makes their own wand or sword. A generator
-turns a handful of choices into a carved 3D wand or a forged 3D sword; the shop
-around it makes the choosing feel like shopping for one.
+A street with three shops where a child makes their own wand, sword or potion. A
+generator turns a handful of choices into a carved 3D wand, a forged 3D sword or a
+glass bottle of potion; the shop around it makes the choosing feel like shopping
+for one.
 
 ## Language
 
 **Wand**:
-One of the two things a child can make, from the wand shop: carved wood with a
+One of the three things a child can make, from the wand shop: carved wood with a
 **core**, a handle and a shaft, in a box on a counter. Everything under "Wand"
 below (Bark, Bumps, Zone, Extras, Core, Spell, Wave) is the wand's alone.
 _Avoid_: Design.
 
 **Item kind**:
-Wand or sword: which of the two a thing is. Each has its own params, save document,
+Wand, sword or potion: which of the three a thing is. Each has its own params, save document,
 shelf section and shop. Stored and shared as `{ params, name? }` whichever kind it
-is; a link names the kind. In code an **item** is either, and `engine/` and `items/`
-are item-agnostic.
+is; a link names the kind. In code an **item** is any of them, and `engine/` and
+`items/` are item-agnostic.
 _Avoid_: Type, category, item (in UI copy).
 
 **Params**:
-An item's choices, keyed by its schema (`wand/wandSchema.ts`, `sword/swordSchema.ts`).
+An item's choices, keyed by its schema (`wand/wandSchema.ts`, `sword/swordSchema.ts`,
+`potion/potionSchema.ts`).
 Always normalised: clamped, snapped to step, with choices allowed by the others.
 
 **Shop**:
-A place that makes one item kind: the wand shop (`/wands`) and the smithy
-(`/swords`). Each has its own scene, controls, words, colours and picture, on one
+A place that makes one item kind: the wand shop (`/wands`), the smithy
+(`/swords`) and the potion shop, Bubble & Brew (`/potions`; `apothecary` in
+code). Each has its own scene, controls, words, colours and picture, on one
 shared shell. Entering a shop makes it the **last shop**.
 _Avoid_: Page, mode.
 
 **Street**:
 The first page a visitor sees (`/street`): one painting of eight shops along a
-lane with its lights off, the two built ones lighting up when pointed at and
+lane with its lights off, the three open ones lighting up when pointed at and
 opening as links, the rest shut for the night; and the way back to the hub. On a phone it slides sideways and opens on
 the last shop; on a touch screen a tap picks a shop and an Enter button goes in. A returning visitor skips it and opens in the
 shop they were last in; a visitor with an old save sees it once.
 _Avoid_: Home, landing page, menu.
 
 **Sword**:
-The other thing a child can make, from the smithy: a blade, a guard, a grip and a
+The second thing a child can make, from the smithy: a blade, a guard, a grip and a
 pommel, forged from steel, fittings and leather. A set of **params** like the wand,
 in one of eight **kinds of sword**.
 _Avoid_: Blade (that is only the steel part), weapon.
@@ -81,7 +84,8 @@ on metal, paint, bone, gem seats or an engraving. Takes little stain
 A section of params a child sees together. A wand's: the wood, the shape, the
 branch (on a Branch only), the handle, the shaft, the extras, the core. A sword's:
 the kind, the metal, the blade, the edge and tip, the guard, the grip, the pommel,
-the finishing touches. The unit a **lock** works on.
+the finishing touches. A potion's: what goes in, the bottle, the stopper and label.
+The unit a **lock** works on.
 
 **Bumps**:
 Evenly spaced swellings along the shaft, knobbly or bamboo. Part of the shaft's
@@ -131,7 +135,8 @@ _Avoid_: Cast effect, animation.
 **Flourish**:
 An item's show-off move in the **close look**, when it arrives or a child taps it.
 A wand's is a **wave**; a sword's is the same figure of 8, slower, followed by a
-**glint** and the **runes** waking.
+**glint** and the **runes** waking; a potion's is the **mix**: a lift, the
+**swirl** and the **uncorking**.
 _Avoid_: Cast (the code's old name), animation, effect.
 
 **Wave**:
@@ -151,11 +156,12 @@ _Avoid_: Modal, inspector, zoom view.
 
 **The counter**:
 The wand shop's main screen: the wand in its box, its **tag**, and the controls.
-The smithy's is the anvil.
+The smithy's is the anvil; the potion shop's is the **brewing table**.
 
 **Tag**:
 The paper label tied to the wand's box: shop number, name and tag line. The
-smithy's, on its sword, is the **ticket**.
+smithy's, on its sword, is the **ticket**; the potion shop's is the **recipe
+card**.
 
 **Ticket**:
 The smithy's tag: brown card on twine tied to the sword's grip, with the same shop
@@ -174,14 +180,15 @@ A sentence about the wood and one about the core. Original, never franchise
 vocabulary.
 
 **Your shelf**:
-The wands and swords a child has kept, a section for each kind, each item in its own
-labelled box, oldest first.
+The wands, swords and potions a child has kept, a section for each kind that has
+something in it, each item in its own labelled box, oldest first. A potion's box
+shows the bottle's outline with its layers, or its one mixed colour.
 _Avoid_: Collection, saved wands, my wands.
 
 **Player**:
 The family profile a page opened for. Each kind's counter and shelf are kept
-per player, under `armoury:save@<accountId>` and `armoury:save:sword@<accountId>`,
-and the bare keys signed out; the code always names the bare key and
+per player, under `armoury:save@<accountId>`, `armoury:save:sword@<accountId>` and
+`armoury:save:potion@<accountId>`, and the bare keys signed out; the code always names the bare key and
 `@hoe/accounts`' `profileStorage` adds the suffix. The last shop
 (`armoury:shop`) belongs to the device. A device's documents from before
 profiles are copied into each player on first open, and never written again
@@ -191,15 +198,17 @@ _Avoid_: User, account (in UI copy), owner.
 
 **Shared view**:
 `/shared#w=...`, where a share link lands, open to anyone. It opens the link's
-own shop, and the wand or sword can be shaped like any other, but it is kept in
-memory only: no shelf, no autosave, no last shop. "Keep this wand" or "Keep
-this sword" goes to that kind's shop, behind the gate, carrying the item as it
-is now ([ADR 0093](../../docs/adr/0093-estate-gate.md) decision 6).
+own shop, and the wand, sword or potion can be shaped like any other, but it is
+kept in memory only: no shelf, no autosave, no last shop. "Keep this wand",
+"Keep this sword" or "Keep this potion" goes to that kind's shop, behind the
+gate, carrying the item as it is now ([ADR 0093](../../docs/adr/0093-estate-gate.md) decision 6).
 
 **Try another**:
-Replace the item on the counter or anvil with a random one, keeping any locked
-groups and its kind.
-**Put the last one back** undoes it until something else changes.
+Replace the item on the counter, anvil or brewing table with a random one, keeping
+any locked groups and its kind. A potion comes with three ingredients, not yet
+mixed.
+**Put the last one back** undoes it until something else changes; the potion shop
+does not offer it.
 _Avoid_: Surprise me, randomise (in UI copy).
 
 **Stage**:
@@ -248,3 +257,97 @@ Marks that glow faintly on the blade, in the groove, near the guard or down the
 middle, in a **core**-style colour. They are the wand's invented glyphs, drawn as a
 mask, not carved. They wake in the close look as the **flourish** ends.
 _Avoid_: Letters, writing, glyphs (the code's word).
+
+### The potion's parts
+
+**Potion**:
+The third thing a child can make, from the potion shop: a glass bottle (one of
+five shapes, a neck, a glass tint), a stopper (cork or glass), a label, and three
+**ingredients** inside, **layered** until they are **mixed**
+([ADR 0113](../../docs/adr/0113-armoury-three-ingredients-that-mix.md)).
+_Avoid_: Brew (for the item; "Brew" is only a name noun), elixir, drink.
+
+**Ingredient**:
+One of nine things that go in the bottle, each a jar in the picker with its
+painted picture and name: Emberroot, Starpetal, Frogfizz, Snailshine, Bluebell
+dew, Thundercloud, Moonmilk, Rosehip syrup, Puffcap. Each has a colour, a
+**trait**, a place on **the wheel** and a line of **lore**. Its id is permanent.
+_Avoid_: Reagent, component, flavour.
+
+**Pour**:
+One ingredient put in the bottle by a tap on its jar. A bottle takes three, and
+the same ingredient may go in more than once. Nothing is taken out one at a time:
+"Empty the bottle" starts again. The group is "What goes in" and its tab is Pours.
+_Avoid_: Add, dose, slot (the code's word for where a pour goes).
+
+**Layer**:
+A pour as it sits in the bottle before the mix: a band of its ingredient's colour
+a third of the bottle deep, in the order poured, bottom first.
+_Avoid_: Band (the code's word), stripe.
+
+**Mix**:
+What a tap on a full bottle does, and the potion's **flourish**: the bottle lifts,
+the layers **swirl** into one colour, and the **uncorking** shows what the potion
+does. A potion stays mixed, with its new name, until the bottle is emptied; a tap
+on a mixed potion plays the show again. Fewer than three ingredients only rattle
+the stopper.
+_Avoid_: Brew, stir, shake, cast.
+
+**The wheel**:
+The rule that decides what a mix does. The nine ingredients sit round a colour
+wheel in rainbow order, and six **effects** share it; three ingredients pull
+towards their places, and the mix lands on one effect, or cancels out and goes
+**murky**. Order does not matter. Three of one is always that ingredient's own
+effect.
+_Avoid_: Recipe book, table, formula.
+
+**Murky**:
+What a mix is when its three ingredients cancel out: a brown-green potion with no
+**effect** but one lazy bubble, and a name of its own ("Swampy Surprise"). About
+one recipe in seven. An outcome, never an ingredient, and not a failure.
+_Avoid_: Failed, ruined, mud (in UI copy).
+
+**Trait**:
+What a layer or a mixed potion looks like inside: clear, cloudy, fizzy, sparkly,
+glowing or swirly, and murky for a murky mix only. Each ingredient has one; a
+mixed potion takes its main ingredient's
+([ADR 0109](../../docs/adr/0109-armoury-potion-look.md)).
+_Avoid_: Texture, material.
+
+**Effect**:
+What a mixed potion does when it is uncorked, and the first word of its name:
+Floating, Sparkling, Dreamy, Glowing, Whirling or Whiffy. A short, bounded show of
+particles in the potion's colours, bigger when more of the three ingredients share
+it. Nothing else happens: nobody drinks it.
+_Avoid_: Spell (the wand's), power, magic, ability.
+
+**Secret blend**:
+One of twelve recipes that, once mixed, gets its own name, **lore**, a gold label
+and a gold **recipe card** ("The Moon Behind the Storm"). Nothing in the shop says
+which recipes are secret, and there is no list to fill.
+_Avoid_: Recipe book, achievement, rare.
+
+**Swirl**:
+The middle of the mix: the layers wind round the bottle's axis into the mixed
+colour. On a potion that is already mixed, its ingredients' colours streak through
+and fade back.
+_Avoid_: Stir, shake.
+
+**Uncorking**:
+The end of the mix: the stopper twists out with a pop and swings aside, the
+**effect** comes out of the neck, and the stopper goes back. The potion's new name
+appears at the pop
+([ADR 0111](../../docs/adr/0111-armoury-potion-close-look.md)).
+_Avoid_: Opening, drinking, casting.
+
+**Brewing table**:
+Where the bottle stands in the potion shop: a wooden table in a dim, candlelit
+room, a candle to its left, shelves of jars in the dark behind
+([ADR 0110](../../docs/adr/0110-armoury-potion-shop-scene-card-and-picture.md)).
+_Avoid_: Counter (the wand shop's), cauldron, lab.
+
+**Recipe card**:
+The potion shop's **tag**: a card on string beside the bottle, with the shop
+number, the name and the tag line. Before the mix its name lists the layers
+("Moonmilk, Rosehip and Starpetal"); after, it keeps the recipe in its tag line.
+_Avoid_: Recipe book, label (the paper on the bottle), ticket (the smithy's).
