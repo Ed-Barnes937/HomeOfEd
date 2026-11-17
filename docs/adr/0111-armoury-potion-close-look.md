@@ -286,6 +286,18 @@ are as bright as a pale one's, and keeps its body under about 0.6 before the ton
 anything much brighter towards white, and the first sheets' glitter and stars were white whatever
 the potion. Only their small cores go past it.
 
+**Alpha covers colour (ticket 28).** The canvas is premultiplied, and a light that covered nothing
+left colour above its alpha, which WebGL leaves undefined. Chromium and Firefox added it to the
+page; WebKit, in a live show, dropped every pixel whose alpha was 0, so its lights showed only over
+the bottle and cork, as Ed saw in Zen (Playwright's headless Firefox did not show it). Each sprite
+now covers what is behind it by `cover` or by its own brightest channel, whichever is more, still
+blended over, so the canvas's alpha never falls below its colour. Over the dark room the canvas's
+colour is unchanged; over the bottle, the smoke and each other a light now hides a little of what
+it lies on: against the earlier frames the most is 24 of 255 (whiffy's bright point in its smoke),
+88 on a few pixels where stars overlap. A second, alpha-only draw would keep every colour exactly,
+at twice the sprites' fill; not worth it for that. The shots script takes `--browser=firefox` or
+`webkit`; a held frame hides the fault in WebKit, so judge it from a live show.
+
 **The bloom exception** (against ADRs 0082, 0083 and 0100).
 
 - **What and where:** only the effect's sprites, inside the box above the neck. Their cap is the
