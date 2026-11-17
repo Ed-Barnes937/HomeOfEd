@@ -304,7 +304,7 @@ _Avoid_: Recipe book, table, formula.
 **Murky**:
 What a mix is when its three ingredients cancel out: a brown-green potion with no
 **effect** but one lazy bubble, and a name of its own ("Swampy Surprise"). About
-one recipe in seven. An outcome, never an ingredient, and not a failure.
+one recipe in eight. An outcome, never an ingredient, and not a failure.
 _Avoid_: Failed, ruined, mud (in UI copy).
 
 **Trait**:

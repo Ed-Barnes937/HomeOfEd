@@ -80,7 +80,7 @@ src/
                       up to one effect, or to murk
     mixColour.ts      the mixed colour, worked out in OKLCH
     mixBeats.ts       when a mix is revealed; the shell and the stage share it
-    effects.ts        the seven effects: word, sentence, colours
+    effects.ts        the six effects and murky: word, sentence, colours
     blends.ts         the secret blends
     bottles.ts        one data row per bottle shape
     compile.ts        params -> PotionSpec
@@ -132,8 +132,9 @@ src/
     LiquidMotes.tsx   the specks, bubbles and glitter inside the liquid
     slosh.ts          the held liquid's surface, a damped pendulum
     potionShow.ts     the show's one clock: lift, swirl, pop, effect, return
-    effectKinds.ts, EffectShow.tsx   what comes out of the neck: seven bounded
-                      particle programs, and the sprites that draw them
+    effectKinds.ts, EffectShow.tsx   what comes out of the neck: the six effects
+                      and murky as bounded particle programs, and the sprites
+                      that draw them
     FlourishProbe.tsx, PotionPoseProbe.tsx   dev-only, for the shots script
   shop/               one shell for every shop: ShopPage, header, tag, controls
                       (panel/sheet), and the ShopView each shop supplies

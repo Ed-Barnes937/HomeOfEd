@@ -192,7 +192,7 @@ What a child learns by playing (the rule's shape):
 
 **The odds** (computed over all 165 multisets of three from nine, and pinned by a unit test):
 glowing 24, floating 24, sparkling 24, whirling 24, dreamy 24, whiffy 24, murky 21. So of the
-different recipes a child can make, about one in seven goes murky and about one in seven gives
+different recipes a child can make, about one in eight goes murky and about one in seven gives
 each effect (E16). Under Try another (three independent picks, 729 equally likely orders) every
 murky recipe has six orders and a repeat fewer, so there murky is 126 of 729 (about 1 in 5.8) and
 each effect 100 or 101 (about 1 in 7.2); the test pins these numbers too. The nearest any sum

@@ -62,10 +62,10 @@ Why a vector rule and not a lookup table:
   round the nine-step wheel are 3,3,3 or 2,3,4, as opposite paint colours make mud.
 
 The odds, pinned by `mix.test.ts`: over the 165 multisets of three from nine, each
-effect gets 24 and murky 21 (about one in seven each). Under Try another (729
-equally likely orders) murky is 126 (about 1 in 5.8) and each effect 100 or 101
-(about 1 in 7.2). Six of the 84 three-different recipes land on an effect none of
-the three has (Starpetal, Snailshine and Bluebell is Floating). The nearest any
+effect gets 24 (about one in seven) and murky 21 (about one in eight). Under Try
+another (729 equally likely orders) murky is 126 (about 1 in 5.8) and each effect
+100 or 101 (about 1 in 7.2). Six of the 84 three-different recipes land on an effect
+none of the three has (Starpetal, Snailshine and Bluebell is Floating). The nearest any
 effect sum comes to a sector edge is 1.124 degrees (Emberroot with two Frogfizz, and
 its two symmetric recipes: Snailshine with two Thunderclouds, Moonmilk with two
 Puffcaps); the test asserts more than 1.1. The murk line (0.78) sits between the
