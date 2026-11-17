@@ -2,7 +2,11 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-14
-- **Related:** [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the picker's jars).
+- **Related:** [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the nine
+  ingredients and their wheel order), [ADR 0108](0108-armoury-potion-shop-on-the-shell.md)
+  ("The pour picker", whose jars carry the pictures),
+  [ADR 0110](0110-armoury-potion-shop-scene-card-and-picture.md) (the room whose art
+  the pictures must sit with).
 
 ## Context
 
@@ -56,9 +60,11 @@ into the jar tile. The crop is 88 percent of the cell, so a subject 70 percent o
 cell wide fills about 79.5 percent of the picture, and the mask is solid only inside 70
 percent of the picture's width. Compact, roughly round subjects survive it (a round
 edge keeps about 68 percent opacity); the tips of tall or wide ones, such as a long
-root or a drooping bell, fade. Ticket 24's prompt should ask for compact, roughly round
-silhouettes, or ticket 25 may loosen the mask. A picture that fails to load falls back to the swatch. The "In the
-bottle" rows keep the small swatch.
+root or a drooping bell, fade. Ticket 24's prompt asked for compact, roughly round
+silhouettes for that reason, and ticket 25 kept the mask as it is: Ed's sheet needs it
+(its bottom row is painted high, and the flat cuts would show under a looser mask). A
+picture that fails to load falls back to the swatch. The "In the bottle" rows keep the
+small swatch.
 
 ### Sizes and budget
 
@@ -102,8 +108,10 @@ and 11 retuned those ingredients' colours.)
 ### Ed's art (ticket 25)
 
 The nine committed pictures are Ed's painted ingredients (E8, E26), cut from one sheet he made
-with Gemini's image model ("Nano Banana", E8) from ticket 24's prompt. Which tier and settings
-he used were not recorded. No cell was re-done and nothing was repainted, recoloured or
+with Google's image model from ticket 24's prompt. The file's own Content Credentials (C2PA)
+say so: "Created by Google Generative AI" from two input images, then "Resized by Google
+Generative AI", time-stamped 2026-11-14 20:54 UTC. E8 planned Nano Banana; which model, tier
+and settings he used were not recorded. No cell was re-done and nothing was repainted, recoloured or
 re-centred: the sheet was cut as supplied.
 
 - **The sheet.** 2048 x 2048 px, a baseline JPEG (the prompt asked for a PNG; the cutter takes
@@ -115,7 +123,7 @@ re-centred: the sheet was cut as supplied.
   Starpetal 7.3, Frogfizz 5.7, Snailshine 5.2, Bluebell dew 5.6, Thundercloud 3.4, Moonmilk
   2.9, Rosehip syrup 3.9, Puffcap 5.7 (45 KB in all).
 - **Moonmilk's moon** came back as a small crescent where the prompt asked for the reflection
-  of a full moon. Ed saw it and supplied the sheet as it is, so it stands.
+  of a full moon. Ed supplied the sheet as it is, so it is taken as accepted (E26).
 - **The ground** came back as about `#100b11`, six levels lighter than `#0a070b`, as ticket
   24's dry run expected. The mask turns that into a soft-edged disc about 1.2 L* lighter than
   the jar tile, which does not show at ordinary brightness.

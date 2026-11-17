@@ -9,8 +9,10 @@
   settings), [ADR 0105](0105-armoury-upright-items-on-the-stage-rigs.md) (the rigs),
   [ADR 0107](0107-armoury-bottle-generator.md) (the bottle's form),
   [ADR 0110](0110-armoury-potion-shop-scene-card-and-picture.md) (the room, the card and its
-  painter), [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the colour wheel). Tickets
-  11 and 12 add sections here.
+  painter), [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the colour wheel),
+  [ADR 0111](0111-armoury-potion-close-look.md) (the mixed liquid, the swirl and the
+  uncorking, in the close look). Ticket 11 added the traits here. The first version has
+  no pour stream: a picked ingredient appears as its layer at once.
 
 ## Context
 
@@ -52,8 +54,10 @@ the upper band, no tinted patch. No two-pass split can order a concave body; it 
 Every glass pass sets `forceSinglePass`. Without it three draws a transparent double-sided
 material as a back-face pass and then a front-face pass, flipping the winding for the first,
 so `gl_FrontFacing` read true on back faces: the far outer wall drew in the near pass at full
-light (normals turned to face the eye), and the near lining drew in the far pass. That was
-round 2's second candle, mirrored across the bottle with its own halo. The far half's light is
+light (normals turned to face the eye), and the near lining drew in the far pass. The bug was
+only ever in the two light passes (`MeshPhysicalMaterial`): the two tint passes are
+`ShaderMaterial`s, which three already draws in one pass, so their flag only states the
+intent. That was round 2's second candle, mirrored across the bottle with its own halo. The far half's light is
 backed off to 0.15 of the near half's (`FAR_LIGHT`, about a seventh), and the cavity's lining
 reflects 0.02 of the outside's (`INNER_LIGHT`, a fiftieth; it was 0.06, which drew a second
 glint beside the first once the lining was in front), so the candle shows once in the glass
@@ -144,8 +148,9 @@ liquid's colour; the room art and the picture's painter draw the pool of that li
 the left, a warm table bounce below, the dim room behind, cool panels high on the right and
 dark above. The materials' `envMapIntensity` values (the glass's 1.5, the liquid's 1.6 and 0.5)
 have no effect: three uses `scene.environmentIntensity` (1) for any material that has no
-`envMap` of its own, so every potion material reflects the lightformers at 1, as the wand's and
-the sword's materials do. The spike's dim studio map under them was dropped: its softboxes showed as stray
+`envMap` of its own, so every potion material reflects the lightformers at 1. The wand's and
+the sword's materials take their scene's value in the same way; on the wand's stages that
+value is 0.45, not 1. The spike's dim studio map under them was dropped: its softboxes showed as stray
 hexagons in the glass, and the shop no longer needs `studio.hdr`. No asset is added.
 
 **Tone mapping and bloom.** The potion's canvases render with ACES. `@react-three/fiber` already
@@ -191,9 +196,9 @@ light before `potionCap`; every `fwidth` is taken before the discard and the tra
   square of the thickness, fills the middle, so the middle glows yellower and brighter than the
   edges: a light from inside, not a mottled orange cloud (round 1's noise ran 0.5 to 1 and read as
   Puffcap's cloud in orange). At its brightest the red channel's self light and glow, 0.87 x (0.4
-  + 0.55) = 0.83, is under `REST_CAP` though past the soft cap's knee (0.6 x `REST_CAP` = 0.77);
-  the unit test checks only those two terms, and the soft cap holds the rest (the key, back and
-  milk light).
+  - 0.55) = 0.83, is under `REST_CAP` though past the soft cap's knee (0.6 x `REST_CAP` = 0.77);
+    the unit test checks only those two terms, and the soft cap holds the rest (the key, back and
+    milk light).
 - `glitter` (Starpetal gold `#ffe4a0`, Thundercloud silver `#e4eaff`): fine flecks in the skin
   (a 1.5 mm cell, three in four holding a fleck 0.15 to 0.5 mm, never under 0.6 px), each a facet
   turning slowly: a faint glimmer, and a flash of three times the candle's colour only where the

@@ -30,13 +30,13 @@ Two facts shape the routing:
 
 **Flat routes.**
 
-| Path | Shows |
-|---|---|
-| `/` | Nothing: `beforeLoad` throws a replace redirect to `landingPath(landing)`. |
+| Path      | Shows                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------- |
+| `/`       | Nothing: `beforeLoad` throws a replace redirect to `landingPath(landing)`.                   |
 | `/street` | The street: one painting of eight shops, a link traced over each open one, and the hub link. |
-| `/wands` | The wand shop. |
-| `/swords` | The smithy. |
-| `/shelf` | One shelf, a section per kind. |
+| `/wands`  | The wand shop.                                                                               |
+| `/swords` | The smithy.                                                                                  |
+| `/shelf`  | One shelf, a section per kind.                                                               |
 
 **The landing is worked out once, before the router runs.** The workbench
 provider, above the router, decodes the arrival fragment and reads
@@ -105,7 +105,7 @@ retracing, and nothing else in the code assumes the painting's proportions.
   line at the foot of the screen reads "Click a shop to go in." A touch screen
   and a tall window have their own caption and never show it.
 - An open shop's shape is a real link (`Go into the wand shop`, `Go into the
-  smithy`): focusable, a real `href`, routed by the router. At rest it is an
+smithy`): focusable, a real `href`, routed by the router. At rest it is an
   invisible hit target, so the whole front and only it is clickable; the lit
   layer above it never catches the pointer and is hidden from assistive tech.
   Its lights coming on are the hover, press and keyboard focus indicator. A

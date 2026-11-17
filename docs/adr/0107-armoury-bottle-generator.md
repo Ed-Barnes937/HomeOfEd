@@ -5,7 +5,11 @@
 - **Status:** Accepted
 - **Date:** 2026-11-13
 - **Related:** [ADR 0104](0104-armoury-potion-item.md) (the potion item and its rows),
-  [ADR 0098](0098-armoury-sword-generator.md) (the sword generator, the pattern this follows).
+  [ADR 0098](0098-armoury-sword-generator.md) (the sword generator, the pattern this follows),
+  [ADR 0105](0105-armoury-upright-items-on-the-stage-rigs.md) (the rigs it stands on),
+  [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (three pours, not four: each fills a third).
+  Drawn by [ADR 0109](0109-armoury-potion-look.md) (glass and liquid) and
+  [ADR 0111](0111-armoury-potion-close-look.md) (the tipped levels under the slosh).
 
 ## Context
 

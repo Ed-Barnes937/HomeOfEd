@@ -1,13 +1,18 @@
 # 0106 - armoury potion: effects, names, secret blends and the DO_NOT_USE list
 
-> Superseded in part by ADR 0113 (three ingredients that mix).
+> Superseded in part by [ADR 0113](0113-armoury-three-ingredients-that-mix.md)
+> (three ingredients that mix): the effect now comes from the wheel rule, not the
+> commonest pour; names, blends and nouns are as that ADR has them. The
+> DO_NOT_USE guard and the rule against drinking words stand as written here.
 
 - **Status:** Accepted
 - **Date:** 2026-11-13
 - **Related:** [ADR 0104](0104-armoury-potion-item.md) (pours, compaction, the
   ingredient table), [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (item
   kinds), [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md) (the sword's
-  derived names).
+  derived names). Read by [ADR 0108](0108-armoury-potion-shop-on-the-shell.md) (the
+  shop's card and copy) and [ADR 0111](0111-armoury-potion-close-look.md) (the
+  effects as drawn).
 
 ## Context
 
@@ -57,12 +62,14 @@ franchise or game vocabulary.
   Potion", "Climax Potion", "Together" and "Chi Potion" pass. Elixir alone is the
   exception: it matches only as the whole name, so "Rose Elixir" passes. Patterns
   catch a name beginning "Potion of", "Draught of", "Elixir of" or "Philter", and
-  Super, Hyper, Max, Mega, Hi or X directly before "Potion". The guard is run on every blend name and lore
-  sentence, every preset, and every ingredient label, word and lore line.
+  Super, Hyper, Max, Mega, Hi or X directly before "Potion". The guard is run on
+  every blend name and lore sentence, every preset, and every ingredient label,
+  word and lore line.
 - **Names never mention drinking or tasting.** The shop is a place to make
   and look at potions, and the effect is the uncorking, so the words are about
-  colour, layers and what comes out of the neck. A unit test keeps blend lore free
-  of drinking and tasting words.
+  colour, layers and what comes out of the neck. A unit test in
+  `describe.test.ts` sweeps every word, name, tag line and lore sentence a potion
+  can show for drinking and tasting words.
 
 ## Consequences
 

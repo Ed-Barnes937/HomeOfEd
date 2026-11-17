@@ -1,5 +1,13 @@
 # 0096 - armoury item kinds: a save document per kind, the kind named in the link
 
+> Amended 2026-11-17: a third kind, `potion`, was added by this ADR's rules and
+> nothing in either format changed. `ItemKind` is `'wand' | 'sword' | 'potion'`, its
+> save document is `armoury:save:potion`, its link field is `potion` (in a link
+> with more than one field a wand wins, then a sword, then a potion), and
+> `SAVE_FORMAT_VERSION` is unchanged
+> ([ADR 0104](0104-armoury-potion-item.md), [ADR 0108](0108-armoury-potion-shop-on-the-shell.md),
+> [ADR 0113](0113-armoury-three-ingredients-that-mix.md)).
+
 - **Status:** Accepted
 - **Date:** 2026-11-10
 - **Related:** [ADR 0074](0074-armoury-save-format.md) (the save format this

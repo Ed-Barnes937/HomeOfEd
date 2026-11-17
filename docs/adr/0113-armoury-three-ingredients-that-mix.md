@@ -5,7 +5,13 @@
 - **Related:** [ADR 0104](0104-armoury-potion-item.md) (pours as ordered slots),
   [ADR 0106](0106-armoury-potion-names-effects-and-blends.md) (names, effects and
   blends), [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (item kinds, saves
-  and links).
+  and links). Built on by [ADR 0107](0107-armoury-bottle-generator.md) (three equal
+  pours), [ADR 0108](0108-armoury-potion-shop-on-the-shell.md) (the tap that mixes,
+  the picker), [ADR 0109](0109-armoury-potion-look.md) (the layers and their
+  traits), [ADR 0110](0110-armoury-potion-shop-scene-card-and-picture.md) (the
+  card), [ADR 0111](0111-armoury-potion-close-look.md) (the swirl, the uncorking
+  and the effects) and [ADR 0112](0112-armoury-ingredient-pictures.md) (the
+  ingredient pictures).
 
 ## Context
 
@@ -114,8 +120,8 @@ glowing, sparkling and dreamy, and Emberroot's colour changes to `#ea7b2c`.
   "{Label} {Noun}" if a name is forbidden.
 - Shape nouns for names are now Brew (round), Potion (teardrop), Essence (tall),
   Wonder (shoulder) and Swirl (gourd), a `Record<ShapeId, string>` in `describe.ts`.
-  Tonic, Drops and Mixture read as medicine. `bottles.ts` keeps its `nameNoun`
-  column unread; ticket 18 removes the dead column.
+  Tonic, Drops and Mixture read as medicine. The old `nameNoun` column in
+  `bottles.ts` went unread and ticket 18 removed it.
 - Tag lines and lore say "layers" and what the bottle still needs until it is mixed,
   then keep the recipe on the card ("Mixed from Frogfizz, Frogfizz and Bluebell in a
   tall bottle."). A murky potion is inert and proud of it. `isGold` is true only for
