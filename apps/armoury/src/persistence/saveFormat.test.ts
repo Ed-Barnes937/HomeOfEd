@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { defaults, normalise } from '../engine/schema.ts'
 import { fakeSword } from '../items/testing/fakeItem.ts'
+import { potionSchema } from '../potion/potionSchema.ts'
 import { wandSchema } from '../wand/wandSchema.ts'
 import {
   decodeStored,
@@ -91,6 +92,23 @@ describe('the save document', () => {
     expect(parseSaveDocument(wandSchema, raw).working).toEqual({
       params: defaults(wandSchema),
       name: 'Needle',
+    })
+  })
+})
+
+describe('a potion saved while it could be sealed with wax', () => {
+  it('opens on the counter and the shelf with a cork', () => {
+    const waxed = { ...defaults(potionSchema), glass: 'violet', stopper: 'wax' }
+    const corked = { ...defaults(potionSchema), glass: 'violet', stopper: 'cork' }
+    const raw = JSON.stringify({
+      version: 1,
+      working: { params: waxed },
+      shelf: [{ params: waxed, name: 'Drip' }],
+    })
+    expect(parseSaveDocument(potionSchema, raw)).toEqual({
+      version: 1,
+      working: { params: corked },
+      shelf: [{ params: corked, name: 'Drip' }],
     })
   })
 })

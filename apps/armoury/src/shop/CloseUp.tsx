@@ -1,7 +1,8 @@
-import { Suspense, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 
 import type { StoredItem } from '../items/item.ts'
 import { useStages, type BoxPose, type CloseUpHandle } from '../stage/stage.ts'
+import { useWorkbench } from '../workbench/WorkbenchProvider.tsx'
 import styles from './CloseUp.module.scss'
 import type { ShopView } from './shopView.ts'
 
@@ -31,17 +32,60 @@ export function CloseUp({
   const stageRef = useRef<CloseUpHandle | null>(null)
   const [flourishes, setFlourishes] = useState(0)
   const [leaving, setLeaving] = useState(false)
+  const { dispatch } = useWorkbench(view.item.kind)
+  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const latestParams = useRef(item.params)
+
+  const derivedName = view.item.name(item.params)
+  const [seenName, setSeenName] = useState(derivedName)
+  const [announcement, setAnnouncement] = useState('')
+  if (seenName !== derivedName) {
+    setSeenName(derivedName)
+    setAnnouncement(`${item.name ?? derivedName}. ${view.item.lore(item.params)}`)
+  }
 
   useLayoutEffect(() => {
     dialog.current?.showModal()
   }, [])
 
+  useEffect(() => {
+    latestParams.current = item.params
+  }, [item.params])
+
+  useEffect(
+    () => () => {
+      if (revealTimer.current) clearTimeout(revealTimer.current)
+    },
+    [],
+  )
+
+  const settleReveal = () => {
+    if (!revealTimer.current) return
+    clearTimeout(revealTimer.current)
+    revealTimer.current = null
+    const change = view.closeUp.reveal?.change(latestParams.current)
+    if (change) dispatch({ type: 'set', key: change.key, value: change.value })
+  }
+
+  const startReveal = () => {
+    const { reveal } = view.closeUp
+    if (!reveal) return
+    if (revealTimer.current) clearTimeout(revealTimer.current)
+    const seconds = reducedMotion ? reveal.reducedMotionSeconds : reveal.seconds
+    revealTimer.current = setTimeout(settleReveal, seconds * 1000)
+  }
+
   const flourish = () => {
     stageRef.current?.flourish()
     setFlourishes((c) => c + 1)
+    startReveal()
+  }
+  const arrive = () => {
+    if (view.closeUp.flourishOnArrival) flourish()
   }
 
   const finish = () => {
+    settleReveal()
     if (dialog.current?.open) dialog.current.close()
     onClosed()
   }
@@ -72,7 +116,10 @@ export function CloseUp({
         void putBack()
       }}
       onClose={() => {
-        if (!leaving) onClosed()
+        if (!leaving) {
+          settleReveal()
+          onClosed()
+        }
       }}
     >
       <div className={styles.shade} aria-hidden="true" />
@@ -85,16 +132,20 @@ export function CloseUp({
             <Stage
               ref={stageRef}
               params={params}
+              name={item.name ?? derivedName}
               reducedMotion={reducedMotion}
               boxPose={boxPose}
               onLift={onLift}
-              onArrive={flourish}
+              onArrive={arrive}
               onTapItem={flourish}
               onTapAway={() => void putBack()}
             />
           </Suspense>
         )}
       </div>
+      <p className="visually-hidden" role="status">
+        {announcement}
+      </p>
       <div className={styles.caption}>
         <h2 className={styles.name}>{item.name ?? view.item.name(params)}</h2>
         <p className={styles.description}>{view.item.tagLine(params)}</p>

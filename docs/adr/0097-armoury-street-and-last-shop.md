@@ -1,7 +1,7 @@
 # 0097 - armoury street: flat routes, a landing redirect at the root, the last shop remembered
 
 - **Status:** Accepted
-- **Date:** 2026-11-11 (the painted street amended 2026-11-12)
+- **Date:** 2026-11-11 (the painted street amended 2026-11-12; a third open door, 2026-11-16, see [Amendment](#amendment-2026-11-16-a-third-open-door-bubble--brew))
 - **Related:** [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (the
   `armoury:shop` key and root-path links this routes), [ADR 0075](0075-armoury-share-links-and-picture.md)
   (links live forever), [ADR 0073](0073-armoury-wand-shop.md) (the wand shop, now at
@@ -30,13 +30,13 @@ Two facts shape the routing:
 
 **Flat routes.**
 
-| Path | Shows |
-|---|---|
-| `/` | Nothing: `beforeLoad` throws a replace redirect to `landingPath(landing)`. |
+| Path      | Shows                                                                                        |
+| --------- | -------------------------------------------------------------------------------------------- |
+| `/`       | Nothing: `beforeLoad` throws a replace redirect to `landingPath(landing)`.                   |
 | `/street` | The street: one painting of eight shops, a link traced over each open one, and the hub link. |
-| `/wands` | The wand shop. |
-| `/swords` | The smithy. |
-| `/shelf` | One shelf, a section per kind. |
+| `/wands`  | The wand shop.                                                                               |
+| `/swords` | The smithy.                                                                                  |
+| `/shelf`  | One shelf, a section per kind.                                                               |
 
 **The landing is worked out once, before the router runs.** The workbench
 provider, above the router, decodes the arrival fragment and reads
@@ -105,7 +105,7 @@ retracing, and nothing else in the code assumes the painting's proportions.
   line at the foot of the screen reads "Click a shop to go in." A touch screen
   and a tall window have their own caption and never show it.
 - An open shop's shape is a real link (`Go into the wand shop`, `Go into the
-  smithy`): focusable, a real `href`, routed by the router. At rest it is an
+smithy`): focusable, a real `href`, routed by the router. At rest it is an
   invisible hit target, so the whole front and only it is clickable; the lit
   layer above it never catches the pointer and is hidden from assistive tech.
   Its lights coming on are the hover, press and keyboard focus indicator. A
@@ -215,3 +215,24 @@ The test server serves only the root, so page objects reload at the root
   index redirect go under its pathless `player` layout; its `PROFILE_KEYS`
   gains `armoury:save:sword` and `armoury:shop`; its `SharedView` renders the
   arrival's own shop view. Recorded, not done here.
+
+## Amendment (2026-11-16): a third open door, Bubble & Brew
+
+The potion shop ([ADR 0110](0110-armoury-potion-shop-scene-card-and-picture.md),
+at `/potions`) is open on the street. Its painted shop in `street/shops.ts` has
+`to: '/potions'`, so it gets a link (`Go into the potion shop`), its lights, a
+signpost and, on a touch screen, "Enter Bubble & Brew". This is the data change
+the Consequences foresaw; `StreetPage` is untouched. The links keep the data's
+order (wand shop, smithy, potion shop), which is the keyboard's order; the
+signposts sort by where each shop stands (wand shop, potion shop, smithy). On a
+phone the street opens at Bubble & Brew for a visitor last in it, lined up with
+the left of the view like any shop on the left half of the street.
+
+**It has a spill.** In the lit painting the windows' green and purple light
+lies on the pavement and the cobbles before the shop, down to about y 1110:
+past the foot of its outline (y 960) and past the 24 the mask grows by. Without
+a spill the lit front stood on dark stones. One closed path covers that glow,
+from the foot of the outline down the lane, kept off the Crooked Staff's front
+and short of the street lamp, whose warm light is in both paintings. It was
+checked by laying it over the lit painting and over the difference between the
+two paintings.

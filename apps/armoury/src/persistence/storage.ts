@@ -10,6 +10,7 @@ import {
 export const SAVE_KEY = 'armoury:save'
 /** Each kind has a document of its own, so an older build never rewrites a sword (ADR 0096). */
 export const SWORD_SAVE_KEY = 'armoury:save:sword'
+export const POTION_SAVE_KEY = 'armoury:save:potion'
 
 export type SaveStorage = Pick<Storage, 'getItem' | 'setItem'>
 

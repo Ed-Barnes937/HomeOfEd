@@ -17,6 +17,19 @@
   background: #3a2a1d;
 }
 
+.tabRow {
+  position: relative;
+}
+
+.tabRowLock {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  height: 44px;
+}
+
 .tabs {
   display: flex;
   justify-content: space-between;

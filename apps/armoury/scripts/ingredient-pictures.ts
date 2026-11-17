@@ -1,0 +1,238 @@
+// Cuts the ingredient sprite sheet into the nine pictures the pour picker shows.
+//   pnpm --filter armoury run ingredients:cut <sheet.png|sheet.jpg>   (needs Node 22.6 or later)
+// Writes public/ingredients/<id>.webp (256 x 256) with cwebp (CWEBP overrides its path), and
+// exits non-zero, writing nothing, if the sheet breaks the layout in docs/adr/0112.
+import { execFile } from 'node:child_process'
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import process from 'node:process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
+
+const run = promisify(execFile)
+
+export interface SheetInfo {
+  format: 'png' | 'jpeg'
+  width: number
+  height: number
+  orientation: number
+}
+
+export interface CropRect {
+  id: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type Encode = (job: { sheetPath: string; rect: CropRect; outFile: string }) => unknown
+
+export const INGREDIENT_IDS: readonly string[] = [
+  'emberroot',
+  'starpetal',
+  'frogfizz',
+  'snailshine',
+  'bluebell',
+  'thundercloud',
+  'moonmilk',
+  'rosehip',
+  'puffcap',
+]
+export const MIN_SIDE = 1024
+export const MAX_SIDE = 16384
+export const MAX_BYTES = 30 * 1024
+const SQUARE_TOLERANCE = 0.02
+const INSET = 0.06
+const GRID = 3
+const OUT_SIZE = 256
+const QUALITY = 85
+const CWEBP = process.env.CWEBP ?? '/opt/homebrew/bin/cwebp'
+const OUT_DIR = fileURLToPath(new URL('../public/ingredients/', import.meta.url))
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+const isFrameMarker = (marker: number) =>
+  marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)
+
+const EXIF_HEADER = 'Exif\0\0'
+const ORIENTATION_TAG = 0x0112
+
+/** The EXIF orientation in an APP1 segment's payload (1 when it has none), or null when the segment is not EXIF. */
+const exifOrientation = (bytes: Buffer, start: number, end: number): number | null => {
+  if (bytes.toString('latin1', start, start + 6) !== EXIF_HEADER) return null
+  const tiff = start + 6
+  const little = bytes.toString('latin1', tiff, tiff + 2) === 'II'
+  const u16 = (at: number) => (little ? bytes.readUInt16LE(at) : bytes.readUInt16BE(at))
+  const u32 = (at: number) => (little ? bytes.readUInt32LE(at) : bytes.readUInt32BE(at))
+  if (tiff + 8 > end) return 1
+  const ifd = tiff + u32(tiff + 4)
+  if (ifd + 2 > end) return 1
+  for (let i = 0, count = u16(ifd); i < count && ifd + 2 + i * 12 + 12 <= end; i++) {
+    const entry = ifd + 2 + i * 12
+    if (u16(entry) === ORIENTATION_TAG) {
+      const value = u16(entry + 8)
+      return value >= 1 && value <= 8 ? value : 1
+    }
+  }
+  return 1
+}
+
+/** The format and size a PNG or JPEG declares in its header, or null for anything else. */
+export function readSheetInfo(bytes: Buffer): SheetInfo | null {
+  if (bytes.length >= 24 && PNG_SIGNATURE.every((b, i) => bytes[i] === b)) {
+    return {
+      format: 'png',
+      width: bytes.readUInt32BE(16),
+      height: bytes.readUInt32BE(20),
+      orientation: 1,
+    }
+  }
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let at = 2
+    let orientation = 1
+    let exifSeen = false
+    while (at + 9 < bytes.length && bytes[at] === 0xff) {
+      if (bytes[at + 1] === 0xff) {
+        at++
+        continue
+      }
+      const marker = bytes[at + 1] ?? 0
+      if (isFrameMarker(marker)) {
+        return {
+          format: 'jpeg',
+          width: bytes.readUInt16BE(at + 7),
+          height: bytes.readUInt16BE(at + 5),
+          orientation,
+        }
+      }
+      const length = bytes.readUInt16BE(at + 2)
+      if (marker === 0xe1 && !exifSeen) {
+        const found = exifOrientation(bytes, at + 4, Math.min(at + 2 + length, bytes.length))
+        exifSeen = found !== null
+        orientation = found ?? orientation
+      }
+      at += 2 + length
+    }
+  }
+  return null
+}
+
+/** Why the sheet cannot be cut, or null when it can. */
+export function checkSheet(info: SheetInfo | null): string | null {
+  if (!info) return 'the sheet must be a PNG or JPEG file'
+  const size = `${info.width} x ${info.height}`
+  if (info.orientation !== 1) {
+    return `the sheet is a JPEG with an EXIF orientation flag (${info.orientation}), so it would be cut turned; re-save it upright, or as a PNG`
+  }
+  if (Math.max(info.width, info.height) > MAX_SIDE) {
+    return `the sheet is too large (${size}); it must be at most ${MAX_SIDE} px a side`
+  }
+  const shortSide = Math.min(info.width, info.height)
+  if (shortSide < MIN_SIDE)
+    return `the sheet is too small (${size}); it must be at least ${MIN_SIDE} px a side`
+  if (Math.abs(info.width - info.height) / shortSide > SQUARE_TOLERANCE) {
+    return `the sheet is not square (${size}); its sides may differ by at most 2 percent`
+  }
+  return null
+}
+
+/** The nine crops in wheel order, each cell of the 3 x 3 grid inset by 6 percent, centred on a square sheet. */
+export function cropRects({ width, height }: { width: number; height: number }): CropRect[] {
+  const side = Math.min(width, height)
+  const cell = side / GRID
+  const inset = cell * INSET
+  const size = Math.round(cell - 2 * inset)
+  const left = (width - side) / 2
+  const top = (height - side) / 2
+  return INGREDIENT_IDS.map((id, i) => ({
+    id,
+    x: Math.round(left + (i % GRID) * cell + inset),
+    y: Math.round(top + Math.floor(i / GRID) * cell + inset),
+    w: size,
+    h: size,
+  }))
+}
+
+const encodeWithCwebp: Encode = async ({ sheetPath, rect, outFile }) => {
+  const crop = [rect.x, rect.y, rect.w, rect.h].map(String)
+  try {
+    await run(CWEBP, [
+      '-quiet',
+      '-crop',
+      ...crop,
+      '-resize',
+      String(OUT_SIZE),
+      String(OUT_SIZE),
+      '-q',
+      String(QUALITY),
+      sheetPath,
+      '-o',
+      outFile,
+    ])
+  } catch (error) {
+    const failure = error as NodeJS.ErrnoException & { stderr?: string }
+    if (failure.code === 'ENOENT') {
+      throw new Error(
+        `cwebp was not found at ${CWEBP}: install it with \`brew install webp\`, or set CWEBP to where it is`,
+      )
+    }
+    throw new Error(failure.stderr?.trim() || failure.message)
+  }
+}
+
+/** Cuts the sheet into `<id>.webp` files in outDir; every check passes before the first file lands. */
+export async function cutSheet({
+  sheetPath,
+  outDir = OUT_DIR,
+  encode = encodeWithCwebp,
+}: {
+  sheetPath: string
+  outDir?: string
+  encode?: Encode
+}): Promise<{ id: string; bytes: number }[]> {
+  const info = readSheetInfo(await readFile(sheetPath))
+  const reason = checkSheet(info)
+  if (reason || !info) throw new Error(reason ?? 'the sheet must be a PNG or JPEG file')
+
+  const work = await mkdtemp(join(tmpdir(), 'ingredient-pictures-'))
+  try {
+    const cut: { id: string; bytes: number; file: string }[] = []
+    for (const rect of cropRects(info)) {
+      const outFile = join(work, `${rect.id}.webp`)
+      try {
+        await encode({ sheetPath, rect, outFile })
+      } catch (error) {
+        const failure = error as Error
+        if (failure.message.startsWith('cwebp was not found')) throw failure
+        throw new Error(
+          `${rect.id}.webp could not be cut: the sheet could not be read as a picture. ${failure.message}`,
+        )
+      }
+      const { size } = await stat(outFile)
+      if (size > MAX_BYTES) throw new Error(`${rect.id}.webp is ${size} bytes, over 30 KB`)
+      cut.push({ id: rect.id, bytes: size, file: outFile })
+    }
+    await mkdir(outDir, { recursive: true })
+    for (const { id, file } of cut) await copyFile(file, join(outDir, `${id}.webp`))
+    return cut.map(({ id, bytes }) => ({ id, bytes }))
+  } finally {
+    await rm(work, { recursive: true, force: true })
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const sheetPath = process.argv[2]
+  if (!sheetPath) {
+    console.error('usage: pnpm --filter armoury run ingredients:cut <sheet.png|sheet.jpg>')
+    process.exit(2)
+  }
+  try {
+    for (const { id, bytes } of await cutSheet({ sheetPath })) {
+      console.log(`${id}.webp  ${(bytes / 1024).toFixed(1)} KB`)
+    }
+  } catch (error) {
+    console.error(`ingredient-pictures: ${(error as Error).message}`)
+    process.exit(1)
+  }
+}

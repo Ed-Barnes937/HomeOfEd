@@ -27,6 +27,7 @@ export interface StreetShop {
 export const DOOR_LABELS: Record<ShopPath, string> = {
   '/wands': 'Go into the wand shop',
   '/swords': 'Go into the smithy',
+  '/potions': 'Go into the potion shop',
 }
 
 export const SHOPS: readonly StreetShop[] = [
@@ -65,6 +66,10 @@ export const SHOPS: readonly StreetShop[] = [
     name: 'Bubble & Brew',
     outline:
       'M 1216,510 L 1206,459 L 1200,423 L 1199,400 L 1219,393 L 1219,355 L 1215,350 L 1215,336 L 1225,333 L 1225,328 L 1228,326 L 1238,326 L 1241,330 L 1242,325 L 1245,322 L 1252,322 L 1255,326 L 1255,333 L 1263,338 L 1263,352 L 1259,356 L 1259,379 L 1322,348 L 1329,343 L 1341,372 L 1356,404 L 1374,443 L 1391,479 L 1409,515 L 1424,543 L 1433,572 L 1412,585 L 1410,912 L 1345,915 L 1340,940 L 1300,955 L 1210,958 L 1190,960 L 1192,515 Z',
+    spill: [
+      'M 1192,950 L 1196,1000 L 1232,1030 L 1250,1075 L 1262,1105 L 1300,1112 L 1335,1080 L 1370,1040 L 1425,1012 L 1452,985 L 1440,950 L 1412,905 L 1345,915 L 1340,940 L 1300,955 L 1210,958 Z',
+    ],
+    to: '/potions',
   },
   {
     id: 'brooms',

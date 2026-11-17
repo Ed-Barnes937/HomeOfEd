@@ -6,6 +6,7 @@ import { SAVE_KEY } from '../persistence/storage.ts'
 import { outlinePoints, SHOPS, STREET_PAINTING } from '../street/shops.ts'
 import { verifyNoPlayer, verifyPlayer } from './player.ts'
 import { openAsNewVisitor, reloadAtRoot, reloadInPlace, verifyAt } from './address.ts'
+import { ApothecaryPom } from './ApothecaryPom.ts'
 import { ShopPom } from './ShopPom.ts'
 import { SmithyPom } from './SmithyPom.ts'
 
@@ -25,15 +26,17 @@ export class StreetPom extends BasePage {
     await expect(this.page.getByRole('heading', { name: 'Armoury', level: 1 })).toBeVisible()
     await expect(this.page.getByRole('link', { name: 'Go into the wand shop' })).toBeVisible()
     await expect(this.page.getByRole('link', { name: 'Go into the smithy' })).toBeVisible()
+    await expect(this.page.getByRole('link', { name: 'Go into the potion shop' })).toBeVisible()
     await expect(this.page.getByRole('link', { name: 'Back to home of ed' })).toBeVisible()
   }
 
   /** The built shops are the only doors; the rest are not links at all. */
   async verifyOnlyOpenShopsAreDoors(): Promise<void> {
     const doors = this.shops().getByRole('link')
-    await expect(doors).toHaveCount(2)
+    await expect(doors).toHaveCount(3)
     await expect(doors.nth(0)).toHaveAccessibleName('Go into the wand shop')
     await expect(doors.nth(1)).toHaveAccessibleName('Go into the smithy')
+    await expect(doors.nth(2)).toHaveAccessibleName('Go into the potion shop')
   }
 
   /** Only these shops have their lit painting laid over the dark one, hidden from assistive tech. */
@@ -110,8 +113,9 @@ export class StreetPom extends BasePage {
 
   /** Taps a shop's signpost and waits for the street to come to rest. */
   async showOnStreet(shopName: string): Promise<void> {
+    const from = await this.shops().evaluate((el) => el.scrollLeft)
     await this.signpost(shopName).click()
-    await this.settledScroll()
+    await this.settledScroll(from)
   }
 
   async verifyTitleInView(): Promise<void> {
@@ -143,6 +147,13 @@ export class StreetPom extends BasePage {
     const smithy = new SmithyPom(this.page)
     await smithy.verifyIsShown()
     return smithy
+  }
+
+  async enterPotionShop(): Promise<ApothecaryPom> {
+    await this.page.getByRole('link', { name: 'Go into the potion shop' }).click()
+    const potions = new ApothecaryPom(this.page)
+    await potions.verifyIsShown()
+    return potions
   }
 
   /** On a touch screen: taps a shop's front, which picks it rather than going in. */
@@ -227,15 +238,15 @@ export class StreetPom extends BasePage {
     return this.page.getByRole('button', { name: `Show ${shopName} on the street` })
   }
 
-  /** How far along the street the view is, once a smooth scroll has come to rest. */
-  private settledScroll(): Promise<number> {
+  /** How far along the street the view is, once a smooth scroll away from `from` has come to rest. */
+  private settledScroll(from: number): Promise<number> {
     return this.shops().evaluate(
-      (el) =>
+      (el, start) =>
         new Promise<number>((resolve) => {
-          let last = el.scrollLeft
+          let last = start
           const check = () =>
             setTimeout(() => {
-              if (el.scrollLeft === last) resolve(last)
+              if (el.scrollLeft !== start && el.scrollLeft === last) resolve(last)
               else {
                 last = el.scrollLeft
                 check()
@@ -243,6 +254,7 @@ export class StreetPom extends BasePage {
             }, 120)
           check()
         }),
+      from,
     )
   }
 

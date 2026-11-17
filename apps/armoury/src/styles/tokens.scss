@@ -148,3 +148,37 @@ button {
   --ruler-shade: #94918a;
   --ruler-ink: #1f1d1a;
 }
+
+// The potion shop's palette (ADRs 0108, 0110): plum and candle-dark, a cream recipe card, gilt
+// for a secret blend, gold for actions. palette.test.ts holds every text and ground pair at AA.
+[data-shop='apothecary'] {
+  --shop-dark: #0f0a10;
+  --shop-black: #0a070b;
+  --panel: #140e14;
+  --panel-line: #2c2030;
+  --panel-line-strong: #4b3a4f;
+  --ink: #efe6d6;
+  --ink-muted: #b4a4b0;
+  --ink-faint: #98879c;
+  --lore: #cbb994;
+  --brass: #d2b064;
+  --brass-ink: #1a120a;
+
+  --paper: #ece3cc;
+  --paper-shade: #dccfb1;
+  --paper-ink: #2a1a26;
+  --paper-ink-soft: #4a3446;
+  --paper-ink-faint: #5e4859;
+  --string: #c9b48e;
+
+  --gold-paper: #f2e3b8;
+  --gold-paper-shade: #e2c98f;
+  --gold-ink: #3a2306;
+  --gold-ink-soft: #563810;
+  --gold-ink-faint: #6b4813;
+  --gold-edge: #b8892c;
+  --gold-string: #d9b45c;
+
+  // The brightest the room gets behind the scene's own words (the hint), measured from the art.
+  --scene-lit: #3a2a24;
+}

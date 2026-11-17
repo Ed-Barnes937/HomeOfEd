@@ -1,0 +1,2 @@
+export const MIX_REVEAL_SECONDS = 1.9
+export const MIX_REVEAL_SECONDS_REDUCED = 0.3

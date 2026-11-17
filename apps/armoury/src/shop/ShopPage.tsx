@@ -67,6 +67,7 @@ export function ShopPage({ view, shared = false }: { view: ShopView; shared?: bo
         description: def.tagLine(item.params),
         lore: def.lore(item.params),
         glowRgb: hexToRgb(def.glow(item.params)),
+        params: item.params,
       })
       await savePicture(
         blob,
@@ -81,7 +82,7 @@ export function ShopPage({ view, shared = false }: { view: ShopView; shared?: bo
 
   const actions = (
     <div className={styles.actions}>
-      {state.previous && (
+      {state.previous && (view.offersPutBack ?? true) && (
         <button
           type="button"
           className={styles.putBack}

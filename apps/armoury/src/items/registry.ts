@@ -1,5 +1,10 @@
+import { potionItem } from '../potion/item.ts'
 import { swordItem } from '../sword/item.ts'
 import { wandItem } from '../wand/item.ts'
 import type { ItemDef, ItemKind } from './item.ts'
 
-export const ITEMS: Record<ItemKind, ItemDef> = { wand: wandItem, sword: swordItem }
+export const ITEMS: Record<ItemKind, ItemDef> = {
+  wand: wandItem,
+  sword: swordItem,
+  potion: potionItem,
+}

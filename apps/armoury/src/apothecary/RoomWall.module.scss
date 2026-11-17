@@ -1,0 +1,106 @@
+// The board is drawn at --u per unit with the bottle's foot (1200, 900) on the scene's base line.
+.room {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.art {
+  position: absolute;
+  left: calc(var(--bottle-x) - var(--u) * 1200);
+  top: calc(var(--floor) - var(--u) * 900);
+  width: calc(var(--u) * 2400);
+  height: calc(var(--u) * 1400);
+  background-color: #110b0e;
+  background-size: 100% 100%;
+}
+
+.candleLight {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: calc(var(--u) * 1700);
+  height: calc(var(--u) * 1300);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    rgba(255, 176, 104, 0.2) 0%,
+    rgba(255, 150, 80, 0.07) 30%,
+    rgba(255, 150, 80, 0) 100%
+  );
+  mix-blend-mode: screen;
+  animation: glimmer 5.3s ease-in-out infinite;
+}
+
+.flame {
+  position: absolute;
+  left: calc(var(--x) - var(--u) * 30);
+  top: calc(var(--y) - var(--u) * 64);
+  width: calc(var(--u) * 60);
+  height: calc(var(--u) * 70);
+  overflow: visible;
+  transform-origin: 50% 91%;
+  animation: flicker 3.7s ease-in-out infinite;
+}
+
+// A few percent either way, never a strobe.
+@keyframes glimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  23% {
+    opacity: 0.93;
+  }
+
+  41% {
+    opacity: 0.98;
+  }
+
+  58% {
+    opacity: 0.92;
+  }
+
+  79% {
+    opacity: 0.97;
+  }
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    transform: scale(1, 1) skewX(0deg);
+  }
+
+  27% {
+    transform: scale(0.98, 1.03) skewX(1.5deg);
+  }
+
+  52% {
+    transform: scale(1.01, 0.97) skewX(-1deg);
+  }
+
+  76% {
+    transform: scale(0.99, 1.02) skewX(0.5deg);
+  }
+}
+
+// The header's words sit on the dark at the top; the room falls away at the sides.
+.shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 4, 10, 0.7) 0%, rgba(7, 4, 10, 0) 18%),
+    linear-gradient(90deg, rgba(7, 4, 10, 0.45) 0%, rgba(7, 4, 10, 0) 14%),
+    linear-gradient(270deg, rgba(7, 4, 10, 0.6) 0%, rgba(7, 4, 10, 0) 18%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .candleLight,
+  .flame {
+    animation: none;
+  }
+}

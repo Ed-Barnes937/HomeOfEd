@@ -1,0 +1,71 @@
+import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
+import * as THREE from 'three'
+
+// Dev-only, for the GPU gate shots: publishes the bottle's pose as last drawn, from its glass's
+// world matrix against the up frame and the camera, in degrees.
+interface Probe {
+  potionPose?: {
+    lean: number
+    tip: number
+    tilt: number
+    /** The liquid surface's tilt from level, and its parts in the screen plane (positive: right side up) and towards the viewer (far side up). */
+    wobble: number
+    wobbleLean: number
+    wobbleTip: number
+  } | null
+}
+
+const DEGREES = 180 / Math.PI
+
+export function PotionPoseProbe({
+  up,
+  surface,
+}: {
+  up: RefObject<THREE.Object3D | null>
+  /** The liquid surface's normal in the up frame. */
+  surface: THREE.Vector3
+}) {
+  const mark = useRef<THREE.Group>(null)
+  const v = useMemo(
+    () => ({
+      axis: new THREE.Vector3(),
+      up: new THREE.Vector3(),
+      right: new THREE.Vector3(),
+      viewer: new THREE.Vector3(),
+    }),
+    [],
+  )
+  useEffect(
+    () => () => {
+      ;(window as Window & Probe).potionPose = null
+    },
+    [],
+  )
+  useFrame(({ camera }) => {
+    const probe = window as Window & Probe
+    const glass = mark.current?.parent?.getObjectByName('glass')
+    if (!glass || !up.current) {
+      probe.potionPose = null
+      return
+    }
+    // The bottle is built standing along its own z; matrixWorld is as of the last render.
+    v.axis.setFromMatrixColumn(glass.matrixWorld, 2).normalize()
+    v.up.setFromMatrixColumn(up.current.matrixWorld, 1).normalize()
+    v.right.setFromMatrixColumn(camera.matrixWorld, 0)
+    v.right.addScaledVector(v.up, -v.right.dot(v.up)).normalize()
+    v.viewer.crossVectors(v.right, v.up)
+    const across = v.axis.dot(v.right)
+    const along = v.axis.dot(v.up)
+    const towards = v.axis.dot(v.viewer)
+    probe.potionPose = {
+      lean: Math.atan2(across, along) * DEGREES,
+      tip: Math.asin(THREE.MathUtils.clamp(towards, -1, 1)) * DEGREES,
+      tilt: Math.acos(THREE.MathUtils.clamp(along, -1, 1)) * DEGREES,
+      wobble: Math.acos(THREE.MathUtils.clamp(surface.y / surface.length(), -1, 1)) * DEGREES,
+      wobbleLean: Math.atan2(-surface.x, surface.y) * DEGREES,
+      wobbleTip: Math.atan2(surface.z, surface.y) * DEGREES,
+    }
+  }, -1)
+  return <group ref={mark} />
+}

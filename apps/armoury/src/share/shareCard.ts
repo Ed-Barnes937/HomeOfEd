@@ -1,3 +1,4 @@
+import type { Params } from '../engine/schema.ts'
 import type { ShopCopy } from '../shop/shopView.ts'
 
 export const CARD_WIDTH = 1080
@@ -15,6 +16,7 @@ export interface CardContent {
   lore: string
   /** Its light as `r,g,b`. */
   glowRgb: string
+  params: Params
 }
 
 /** The tag's colours on the picture; a shop's painter may return its own. */
@@ -26,6 +28,8 @@ export interface TagColours {
   name: string
   text: string
   rule: string
+  /** A gilt edge round the tag, for a shop's special items. */
+  edge?: string
 }
 
 const PAPER_TAG: TagColours = {
@@ -91,6 +95,11 @@ function drawTag(ctx: CanvasRenderingContext2D, c: CardContent, colours: TagColo
   ctx.fillStyle = paper
   ctx.fill()
   ctx.shadowColor = 'transparent'
+  if (colours.edge) {
+    ctx.lineWidth = 7
+    ctx.strokeStyle = colours.edge
+    ctx.stroke()
+  }
 
   ctx.beginPath()
   ctx.arc(36, height / 2, 11, 0, Math.PI * 2)
