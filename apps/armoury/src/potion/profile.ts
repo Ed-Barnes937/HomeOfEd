@@ -30,7 +30,7 @@ const CORK_ABOVE_MM = 12
 /** The cavity's floor rounds into its wall with this radius, as blown glass does. */
 export const FLOOR_FILLET_MM = 4
 /** Clearance between a stopper and the glass it rests on. */
-export const FIT_MM = 0.05
+const FIT_MM = 0.05
 
 /** A point on a profile with its unit normal, pointing out of the solid the curve bounds. */
 export interface ProfilePoint {
@@ -51,7 +51,7 @@ interface StopperSeat {
 export interface BottleProfile {
   /** Where the body ends and the neck begins. */
   shoulderZ: number
-  /** The liquid's top at four pours. */
+  /** The liquid's top when the bottle is full. */
   fullZ: number
   lipZ: number
   /** The top of the cavity: the bottom of the stopper's plug. */

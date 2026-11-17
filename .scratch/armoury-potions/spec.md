@@ -192,7 +192,7 @@ What a child learns by playing (the rule's shape):
 
 **The odds** (computed over all 165 multisets of three from nine, and pinned by a unit test):
 glowing 24, floating 24, sparkling 24, whirling 24, dreamy 24, whiffy 24, murky 21. So of the
-different recipes a child can make, about one in seven goes murky and about one in seven gives
+different recipes a child can make, about one in eight goes murky and about one in seven gives
 each effect (E16). Under Try another (three independent picks, 729 equally likely orders) every
 murky recipe has six orders and a repeat fewer, so there murky is 126 of 729 (about 1 in 5.8) and
 each effect 100 or 101 (about 1 in 7.2); the test pins these numbers too. The nearest any sum
@@ -329,7 +329,7 @@ label, every ingredient, every one of the seven outcomes and one secret blend:
 | # | Name | Recipe (pour order) | Mixed | Bottle and finish | Outcome |
 |---|---|---|---|---|---|
 | 0 | Rosy Moonrise (first visit) | moonmilk, rosehip, starpetal | no | teardrop, neck 0.4, clear, cork, round | (dreamy once mixed) |
-| 1 | Early Riser | bluebell, starpetal, emberroot | yes | round, 0.3, sea, glass stopper, banner | Sunrise in a Bottle |
+| 1 | Early Riser | bluebell, starpetal, emberroot | yes | round, 0.3, amber, glass stopper, banner | Sunrise in a Bottle |
 | 2 | Puddle Jumper | frogfizz, bluebell, puffcap | yes | tall, 0.6, sea, cork, tag | murky |
 | 3 | Brewing Weather | thundercloud, snailshine, moonmilk | yes | shoulder, 0.5, violet, cork, none | whirling |
 | 4 | Hearth Warmer | emberroot, emberroot, puffcap | yes | gourd, 0.7, amber, cork, round | whiffy |
@@ -693,3 +693,68 @@ kind).
 | 23 Close look II: the mix in the glass | 11, 14, 21 | opus | close look (the mix) |
 | 24 The ingredient sheet prompt for Ed | 13 (scene gate passed), 11, 16 | opus | prompt review |
 | 25 Ed's ingredient art cut in | 16, 24, Ed's sheet | opus | materials (the pictures) |
+
+## Departures
+
+Where the first version differs from this spec as written above, one line each, with the
+ticket or decision that settled it (E and O entries are in `decisions.md`). Written by ticket
+18; the spec's own text is otherwise left as planned.
+
+1. **No pour in the first version.** A picked ingredient appears as its layer at once, with no
+   stream and no rising band, and Try another fills the bottle with no cascade. The pour is
+   ticket 12, built next (E28, O28).
+2. **The wax seal is cut.** Stoppers are cork and glass, the wax's derived colour goes with it,
+   and the Night Sky preset has a glass stopper (O25, E20; ticket 10's gate, ADR 0107).
+3. **Ingredient colours were retuned under the picked light.** Emberroot `#f0892a`, Starpetal
+   `#f5bd3a`, Thundercloud `#5a4ab8`, Moonmilk `#c7b2f0` (lilac, not pearly white), Rosehip
+   `#e0479a`, Puffcap `#d42c2c`; Frogfizz, Snailshine and Bluebell are as written. The example
+   mixed colours under "The mixing rule" moved with them (ticket 10).
+4. **Murky is lighter, and smoky glass lets more light through** (0.62, was 0.52), because murky
+   in smoky glass was a black bottle; Puddle Jumper moved to sea glass. The murky numbers and
+   the preset row above already say so (ticket 23's fix round).
+5. **The phone's picker was laid out again.** Pictures are 48 px (64 on desk), the group's lock
+   sits in the tab row, and the "bottle is full" or "mixed" message is below the jars, where a
+   tap on a shut jar scrolls it into view (ticket 26, E24).
+6. **The list's heading changes once mixed:** "In the bottle" becomes "Mixed in the bottle"
+   (ticket 22).
+7. **The bottle is about 11 percent bigger in the scene** (the box stage is 460 px on desk and
+   224 on a phone), and it shrinks at 900 wide and at 1024x900 so its shadow stays in view
+   (ticket 13; ticket 10's gate).
+8. **The base line is two settings, not one shared value.** `BASE_LINE` stays 0.84 inside the
+   stage; the scene places the foot at 0.70 (desk) and 0.62 (phone) by CSS (ticket 13).
+9. **The room has story props the spec does not list:** a toad asleep in a saucer and three
+   glowing jars (ticket 13, E23).
+10. **A drag takes the bottle during a show.** The spec has the rig hold it upright throughout;
+    a finger now takes it from the hold at once, and the hold comes back 0.3 s after it lets go
+    (ticket 14, ADR 0111).
+11. **On a phone the held bottle is smaller** (0.80 to 0.84 of the size first built) so a full
+    lean stays on screen (ticket 14).
+12. **The popped stopper swings aside of the neck,** leaning, so the effect has a clear path,
+    and swings back before it re-seats; the spec has it rise and settle straight (ticket 15).
+13. **The effect is not bloomed.** The potion canvas has no post pass, so the effect is additive
+    sprites capped at twice the bloom threshold, not an exception to the cap through a bloom
+    pass (ticket 15, ADR 0111).
+14. **Near a screen edge the effect folds to the open side,** so it is whole on a 360 px phone
+    at a full lean (ticket 15).
+15. **The vortex's uniform is `uVortex`,** not `uSwirl` (ticket 23).
+16. **The motes do not go round with the vortex:** specks, bubbles and glitter hang still while
+    the colours wind (ticket 23, O29).
+17. **The shared close look sets `mixed` itself,** through the workbench, and leaving the page
+    before the reveal does not mix; closing the close look early still does (ticket 21, O23).
+18. **Ed's ingredient sheet** is a JPEG where the prompt asked for a PNG, and its Moonmilk has a
+    crescent moon where the prompt asked for a full one. It was cut as supplied, no cell re-done
+    (ticket 25, E26).
+19. **Tickets.** Ticket 26 (the phone's jars) was added after the re-plan; ticket 12 is not in
+    the first version; ticket 17 had no review of its own and is covered by ticket 18's gate
+    (E24, O27, O28).
+20. **Reviews and gates** (rule 15). From 2026-11-16 a ticket gets one review at most, and a fix
+    round is checked by the orchestrator against the reviewer's own acceptance. Reviews are in
+    `reviews/NN-rN.md`, not `review.md` in the round's folder (E27, O27).
+21. **Models.** From 2026-11-16 every agent runs on Fable, whatever the dependency table says
+    (E25).
+22. **The wand and sword pixel baseline** is `shots/baseline-2/a/`, re-shot at 2d238af4, not
+    ticket 04's `shots/04/baseline/` (ticket 18's Comments, 2026-11-14).
+23. **The shots script times a potion's close frames from the lift,** not from the tap (O24).
+24. **Early Riser is in amber glass, not sea green.** Sea green turned its orange-gold mix lime
+    beside a gold card that promises a sunrise. The preset row above already says so (ticket
+    18's gate).

@@ -205,7 +205,7 @@ const whirling: Program = (seed, i, age, strength, p) => {
   p.y = 0.94 * up + 0.03 * (pick(seed, i, 2) - 0.5) * Math.min(4 * t, 1)
   p.z = out * Math.sin(round)
   p.size = 0.24 + 0.08 * pick(seed, i, 3)
-  p.alpha = 0.9 * smoothstep(t / 0.1) * (1 - smoothstep((t - 0.6) / 0.55))
+  p.alpha = 0.9 * smoothstep(t / 0.1) * (1 - smoothstep((t - 0.9) / 0.8))
   p.shape = SHAPES.ribbon
   p.tint = Math.floor(along * 9)
 }

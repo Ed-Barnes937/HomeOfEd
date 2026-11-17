@@ -334,6 +334,7 @@ for (const size of [
   { width: 900, height: 700 },
   { width: 900, height: 900 },
   { width: 1024, height: 768 },
+  { width: 1024, height: 900 },
   { width: 1180, height: 820 },
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -360,7 +361,7 @@ for (const size of [
     }) => {
       let { root } = await mountApp()
       await root.verifyBottleInScene()
-      for (const params of [TALLEST, SECRET_BLEND, ...LONGEST_TEXTS.map(([p]) => p)]) {
+      for (const params of [TALLEST, WIDEST, SECRET_BLEND, ...LONGEST_TEXTS.map(([p]) => p)]) {
         await startWith(page, params, () => root.reload())
         ;({ root } = await mountApp())
         await root.verifyBottleInScene()
@@ -370,7 +371,7 @@ for (const size of [
     test("the card hangs clear of the bottle's foot and its shadow", async ({ mountApp, page }) => {
       let { root } = await mountApp()
       await root.verifyFootingClearOfCard()
-      for (const params of [TALLEST, SECRET_BLEND]) {
+      for (const params of [TALLEST, WIDEST, SECRET_BLEND]) {
         await startWith(page, params, () => root.reload())
         ;({ root } = await mountApp())
         await root.verifyFootingClearOfCard()
@@ -384,6 +385,7 @@ const TALLEST: Params = {
   shape: 'tall',
   neck: 1,
 }
+const WIDEST: Params = { ...withPours(['thundercloud', 'snailshine', 'moonmilk']), shape: 'round' }
 const SECRET_BLEND = potionPresets.find((preset) => preset.name === 'Early Riser')!.params
 
 failedApothecaryStageTest(

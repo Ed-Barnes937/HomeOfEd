@@ -7,7 +7,9 @@
   [ADR 0109](0109-armoury-potion-look.md) (the liquid's `setSurface`, no post pass at rest),
   [ADR 0082](0082-armoury-material-zones.md), [ADR 0083](0083-armoury-glowing-gems.md) and
   [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md) (the bloom cap and its exceptions),
-  [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the show on arrival, the reveal timer).
+  [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (the show on arrival, the reveal timer),
+  [ADR 0108](0108-armoury-potion-shop-on-the-shell.md) ("The tap that mixes": the shell's side of the reveal),
+  [ADR 0106](0106-armoury-potion-names-effects-and-blends.md) (the effect kinds these programs draw).
 
 ## Context
 
@@ -65,7 +67,7 @@ come out of a bottle the child has let go of mid-swing.
   with `upFrom={up}` kept and no `levels` passed. The mesh composes it with the bottle's turn and
   looks the band tops up in the level table built with the mesh, so every band keeps its volume at
   the sloshed tilt too (by the table's 2 percent); nothing here replaces the level maths. The bottle's
-  tilt is at most about 68 degrees and the wobble 12, so the table (to 90) always covers it.
+  tilt is under 70 degrees and the wobble 12, so the table (to 90) always covers it.
 - No travelling wave: the liquid's material takes no wave amplitude, so the slosh is the surface's
   tilt only.
 - **Reduced motion:** the step resets the state and the normal is exactly +y: the surface is level
@@ -146,15 +148,15 @@ Puddle Jumper stands in sea glass, a mossy pond; and smoky glass lets 0.62 throu
 **The clock** (`stage/potionShow.ts`, pure). `potionShow(sinceStart, { firstMix, full,
 reducedMotion })` gives every beat:
 
-| Beat | Seconds | What moves |
-|---|---|---|
-| lift | 0 to 0.4 | the bottle rises 6 percent of its height, and holds |
-| swirl | 0.4 to 1.6 | the vortex rises over the first 0.36 s and falls over the last 0.48 s; on a first mix `mix` runs 0 to 1 between 0.54 and 1.48 s |
-| twist | 1.6 to 1.9 | the stopper turns a quarter turn and works 0.15 of its plug loose |
-| pop | 1.9 (`MIX_REVEAL_SECONDS`) | the stopper is out, 1.3 plug depths in 0.2 s, and bobs; `popped` is true until the sink |
-| live | to 4.4 | the effect ("The uncorking" below); the stopper hangs aside of the neck and is back above it by 4.4 |
-| settle | 4.4 to 4.9 | the stopper goes back and turns back |
-| sink | 4.9 to 5.2 | the bottle sinks back to the hold |
+| Beat   | Seconds                    | What moves                                                                                                                      |
+| ------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| lift   | 0 to 0.4                   | the bottle rises 6 percent of its height, and holds                                                                             |
+| swirl  | 0.4 to 1.6                 | the vortex rises over the first 0.36 s and falls over the last 0.48 s; on a first mix `mix` runs 0 to 1 between 0.54 and 1.48 s |
+| twist  | 1.6 to 1.9                 | the stopper turns a quarter turn and works 0.15 of its plug loose                                                               |
+| pop    | 1.9 (`MIX_REVEAL_SECONDS`) | the stopper is out, 1.3 plug depths in 0.2 s, and bobs; `popped` is true until the sink                                         |
+| live   | to 4.4                     | the effect ("The uncorking" below); the stopper hangs aside of the neck and is back above it by 4.4                             |
+| settle | 4.4 to 4.9                 | the stopper goes back and turns back                                                                                            |
+| sink   | 4.9 to 5.2                 | the bottle sinks back to the hold                                                                                               |
 
 Fewer than three: the stopper rattles in its seat for 0.4 s and nothing else moves. Reduced motion:
 no lift, no vortex and no turn; `mix` cross-fades in 0.3 s (`MIX_REVEAL_SECONDS_REDUCED`), the
@@ -210,15 +212,15 @@ alpha, a shape code, which of the effect's colours it takes, and whether it has 
 The stage has no branch per kind; it draws whatever comes back, and a shape is only how one sprite
 is shaded. The seed is the recipe's, so each mix has its own arrangement and a replay repeats it.
 
-| Kind | What its particles do | Particles at strength 1, 2, 3 |
-|---|---|---|
-| floating | see-through bubbles swell out, drift up and to the sides, wobble, and pop one by one | 7, 11, 15 |
-| sparkling | four-pointed glitter on arcs: up, over and down to the lip, twinkling | 110, 190, 280 |
-| dreamy | soft five-pointed stars rise slowly, sway, twinkle and fade | 6, 9, 12 |
-| glowing | motes spiral out of the neck, slow, and hover, pulsing | 14, 22, 30 |
-| whirling | one ribbon: points a few milliseconds apart on one widening helix, longer with strength | 120, 200, 280 |
-| whiffy | one puff of 4, 5 or 6 smoke sprites that swells and fades, with 5, 8 or 11 small wisps above it | 9, 13, 17 |
-| murky | one fat bubble, then 7 droplets | 8 |
+| Kind      | What its particles do                                                                           | Particles at strength 1, 2, 3 |
+| --------- | ----------------------------------------------------------------------------------------------- | ----------------------------- |
+| floating  | see-through bubbles swell out, drift up and to the sides, wobble, and pop one by one            | 7, 11, 15                     |
+| sparkling | four-pointed glitter on arcs: up, over and down to the lip, twinkling                           | 110, 190, 280                 |
+| dreamy    | soft five-pointed stars rise slowly, sway, twinkle and fade                                     | 6, 9, 12                      |
+| glowing   | motes spiral out of the neck, slow, and hover, pulsing                                          | 14, 22, 30                    |
+| whirling  | one ribbon: points a few milliseconds apart on one widening helix, longer with strength         | 120, 200, 280                 |
+| whiffy    | one puff of 4, 5 or 6 smoke sprites that swells and fades, with 5, 8 or 11 small wisps above it | 9, 13, 17                     |
+| murky     | one fat bubble, then 7 droplets                                                                 | 8                             |
 
 Strength changes the count (and the ribbon's length), nothing else. Colours are the effect's own
 (`potionEffect` of the potion as mixed: the mixed colour first, then its carriers'), cycled by

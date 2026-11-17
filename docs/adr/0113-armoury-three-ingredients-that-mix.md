@@ -5,7 +5,13 @@
 - **Related:** [ADR 0104](0104-armoury-potion-item.md) (pours as ordered slots),
   [ADR 0106](0106-armoury-potion-names-effects-and-blends.md) (names, effects and
   blends), [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (item kinds, saves
-  and links).
+  and links). Built on by [ADR 0107](0107-armoury-bottle-generator.md) (three equal
+  pours), [ADR 0108](0108-armoury-potion-shop-on-the-shell.md) (the tap that mixes,
+  the picker), [ADR 0109](0109-armoury-potion-look.md) (the layers and their
+  traits), [ADR 0110](0110-armoury-potion-shop-scene-card-and-picture.md) (the
+  card), [ADR 0111](0111-armoury-potion-close-look.md) (the swirl, the uncorking
+  and the effects) and [ADR 0112](0112-armoury-ingredient-pictures.md) (the
+  ingredient pictures).
 
 ## Context
 
@@ -56,10 +62,10 @@ Why a vector rule and not a lookup table:
   round the nine-step wheel are 3,3,3 or 2,3,4, as opposite paint colours make mud.
 
 The odds, pinned by `mix.test.ts`: over the 165 multisets of three from nine, each
-effect gets 24 and murky 21 (about one in seven each). Under Try another (729
-equally likely orders) murky is 126 (about 1 in 5.8) and each effect 100 or 101
-(about 1 in 7.2). Six of the 84 three-different recipes land on an effect none of
-the three has (Starpetal, Snailshine and Bluebell is Floating). The nearest any
+effect gets 24 (about one in seven) and murky 21 (about one in eight). Under Try
+another (729 equally likely orders) murky is 126 (about 1 in 5.8) and each effect
+100 or 101 (about 1 in 7.2). Six of the 84 three-different recipes land on an effect
+none of the three has (Starpetal, Snailshine and Bluebell is Floating). The nearest any
 effect sum comes to a sector edge is 1.124 degrees (Emberroot with two Frogfizz, and
 its two symmetric recipes: Snailshine with two Thunderclouds, Moonmilk with two
 Puffcaps); the test asserts more than 1.1. The murk line (0.78) sits between the
@@ -114,8 +120,8 @@ glowing, sparkling and dreamy, and Emberroot's colour changes to `#ea7b2c`.
   "{Label} {Noun}" if a name is forbidden.
 - Shape nouns for names are now Brew (round), Potion (teardrop), Essence (tall),
   Wonder (shoulder) and Swirl (gourd), a `Record<ShapeId, string>` in `describe.ts`.
-  Tonic, Drops and Mixture read as medicine. `bottles.ts` keeps its `nameNoun`
-  column unread; ticket 18 removes the dead column.
+  Tonic, Drops and Mixture read as medicine. The old `nameNoun` column in
+  `bottles.ts` went unread and ticket 18 removed it.
 - Tag lines and lore say "layers" and what the bottle still needs until it is mixed,
   then keep the recipe on the card ("Mixed from Frogfizz, Frogfizz and Bluebell in a
   tall bottle."). A murky potion is inert and proud of it. `isGold` is true only for

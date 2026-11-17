@@ -515,7 +515,7 @@ interface DrawerLook {
 const DRAWER_STORIES: Record<string, Partial<DrawerLook>> = {
   '1:1:4': { open: 9, poking: 'sprig' },
   '1:3:2': { open: 6 },
-  '1:2:4': { chalk: 'cross' },
+  '1:2:2': { chalk: 'cross' },
   '1:0:3': { plate: 'gone' },
   '3:0:0': { open: 8, poking: 'paper' },
   '3:3:0': { chalk: 'ring' },

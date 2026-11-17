@@ -7,7 +7,12 @@
   and the last shop), [ADR 0093](0093-estate-gate.md) (decision 6, the shared
   view), [ADR 0094](0094-per-profile-local-saves.md) (per-player saves),
   [ADR 0104](0104-armoury-potion-item.md) (the potion item),
-  [ADR 0106](0106-armoury-potion-names-effects-and-blends.md) (its names and effects).
+  [ADR 0106](0106-armoury-potion-names-effects-and-blends.md) (its names and effects),
+  [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (three ingredients and the
+  `mixed` flag the tap sets), [ADR 0110](0110-armoury-potion-shop-scene-card-and-picture.md)
+  (the scene on this shell), [ADR 0111](0111-armoury-potion-close-look.md) (the
+  show the reveal is timed to), [ADR 0112](0112-armoury-ingredient-pictures.md)
+  (the pictures on the picker's jars and its phone layout).
 
 ## Context
 

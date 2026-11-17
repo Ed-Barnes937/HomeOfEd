@@ -52,7 +52,7 @@ describe('the item registry', () => {
       expect(decodeShare(encodeShare('potion', potion))).toEqual({ kind: 'potion', item: potion })
     })
 
-    it('loses to a wand or a sword in the same link', () => {
+    it('loses to a sword in the same link', () => {
       const both = token({ version: 1, potion, sword: { params: swordItem.firstVisit() } })
       expect(decodeShare(both)?.kind).toBe('sword')
     })

@@ -1,11 +1,16 @@
 # 0104 - armoury potion: pours as ordered slots, compaction, the ingredient table
 
-> Superseded in part by ADR 0113 (three ingredients that mix).
+> Superseded in part by [ADR 0113](0113-armoury-three-ingredients-that-mix.md)
+> (three ingredients that mix): four pours became three, Bog murk became Puffcap,
+> and the potion gained a `mixed` flag.
 
 - **Status:** Accepted
 - **Date:** 2026-11-13
 - **Related:** [ADR 0096](0096-armoury-item-kinds-saves-and-links.md) (item kinds,
   saves and links), [ADR 0097](0097-armoury-street-and-last-shop.md) (the street).
+  Built on by [ADR 0106](0106-armoury-potion-names-effects-and-blends.md) (names and
+  effects), [ADR 0107](0107-armoury-bottle-generator.md) (the bottle) and
+  [ADR 0108](0108-armoury-potion-shop-on-the-shell.md) (the shop).
 
 ## Context
 

@@ -8,8 +8,6 @@ export interface BottleRow {
   label: string
   /** The shape's noun in the tag line. */
   noun: string
-  /** The shape's noun in the potion's name. */
-  nameNoun: string
   /** Foot to the top of the body, where the neck begins. */
   bodyHeightMm: number
   /** The `neck` slider maps into this range of neck lengths, top of the body to top of the lip. */
@@ -23,7 +21,7 @@ export interface BottleRow {
    * mm]. The body ends where the neck begins, so the last point is [1, neckRadiusMm].
    */
   body: [number, number][]
-  /** How far up the body four pours reach, as a fraction of its height. */
+  /** How far up the body a full bottle's liquid reaches, as a fraction of its height. */
   fullAt: number
 }
 
@@ -31,7 +29,6 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
   round: {
     label: 'Round flask',
     noun: 'round flask',
-    nameNoun: 'Brew',
     bodyHeightMm: 88,
     neckMm: [16, 40],
     neckRadiusMm: 9,
@@ -55,7 +52,6 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
   teardrop: {
     label: 'Teardrop flask',
     noun: 'teardrop flask',
-    nameNoun: 'Tonic',
     bodyHeightMm: 120,
     neckMm: [16, 42],
     neckRadiusMm: 8,
@@ -79,7 +75,6 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
   tall: {
     label: 'Tall bottle',
     noun: 'tall bottle',
-    nameNoun: 'Drops',
     bodyHeightMm: 150,
     neckMm: [18, 45],
     neckRadiusMm: 7.5,
@@ -98,7 +93,6 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
   shoulder: {
     label: 'Square shoulders',
     noun: 'square-shouldered bottle',
-    nameNoun: 'Mixture',
     bodyHeightMm: 115,
     neckMm: [16, 40],
     neckRadiusMm: 8,
@@ -119,7 +113,6 @@ export const BOTTLES: Record<ShapeId, BottleRow> = {
   gourd: {
     label: 'Gourd bottle',
     noun: 'gourd bottle',
-    nameNoun: 'Potion',
     bodyHeightMm: 135,
     neckMm: [16, 42],
     neckRadiusMm: 7,

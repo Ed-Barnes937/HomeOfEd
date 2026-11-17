@@ -5,8 +5,11 @@
 - **Related:** [ADR 0101](0101-armoury-smithy-scene-tag-and-picture.md) (the smithy's
   scene, the pattern this follows), [ADR 0108](0108-armoury-potion-shop-on-the-shell.md)
   (the potion shop on the shell and its starting palette), [ADR 0105](0105-armoury-upright-items-on-the-stage-rigs.md)
-  (the box stage's base line), ADR 0109 (the potion's look: glass, liquid, the M1
-  light and the picture capture).
+  (the box stage's base line), [ADR 0109](0109-armoury-potion-look.md) (the potion's
+  look: glass, liquid, the M1 light and the picture capture),
+  [ADR 0113](0113-armoury-three-ingredients-that-mix.md) (what the card says before and
+  after a mix), [ADR 0112](0112-armoury-ingredient-pictures.md) (the ingredient
+  pictures, painted to sit with this room).
 
 ## Context
 
@@ -67,7 +70,8 @@ every generated name and tag line on the card) and the hint still fit: on desk
 stands far enough right that the candle's dish is never cut, and far enough left that the
 bottle's widest point stands 24 px inside the scene's right edge with at least half its shadow
 in view (`bottleOnTable`'s `widthMm` and `shadowMidMm`, set as `--half-w` and `--shadow-mid`).
-Where both cannot hold, at 900 px wide beside the panel, the box stage and the board shrink
+Where both cannot hold, at 900 px wide beside the panel and on a tall 1024 (1024x900, where
+the stage goes from 459 to 442 px), the box stage and the board shrink
 until they do for the furthest-reaching bottle (`--reach-half-w`, `--reach-shadow-mid`), so the
 room keeps one scale whichever bottle stands there (round 2's gate found the bottle against
 the edge at 900, its shadow cut). On a phone the box
@@ -84,7 +88,9 @@ to 380 px to leave it room. A desk scene narrower than 600 px (a 900 to 999 px
 window) has no room beside the card, so the hint goes under it as on a phone
 (a container query on the scene; the scene's children take the values, as a
 container can't query itself). `apothecary.iwft.tsx` holds the card and the hint
-whole, apart and above the sheet, and clear of the foot's shadow, at eight sizes from 360x640 to 1440x900. `BASE_LINE` (the foot's place inside the stage) is unchanged at 0.84: the
+whole, apart and above the sheet, and clear of the foot's shadow, at ten sizes from
+360x640 to 1440x900, 1024x900 among them. `BASE_LINE` (the foot's place inside the
+stage) is unchanged at 0.84: the
 scene's line is a scene setting, not a stage one, so the stage's framing is
 untouched.
 

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { FOOT } from '../apothecary/tableArt.ts'
+import { FOOT, roomSvg } from '../apothecary/tableArt.ts'
 import { normalise } from '../engine/schema.ts'
 import { BOTTLES, type ShapeId } from '../potion/bottles.ts'
 import { compilePotion } from '../potion/compile.ts'
 import { potionSchema } from '../potion/potionSchema.ts'
 import { withPours } from '../potion/pours.ts'
 import { liftFromGround, pictureFraming, recipeTag } from './apothecaryCard.ts'
-import { CARD_HEIGHT } from './shareCard.ts'
+import { CARD_HEIGHT, CARD_WIDTH } from './shareCard.ts'
 
 const GROUND: [number, number, number] = [26, 17, 20]
 const pixels = (...px: number[][]) => new Uint8ClampedArray(px.flat())
@@ -89,5 +89,23 @@ describe('pictureFraming', () => {
   it.each(bottles)("$name: stands on the room's table line", ({ spec }) => {
     const { foot, toCard } = pictureFraming(spec)
     expect(toCard(FOOT.x, FOOT.y)).toEqual(foot)
+  })
+
+  const chalkMarks = [
+    ...roomSvg(null, { flame: true }).matchAll(/<path d="([^"]+)" stroke="#e6e0d2"/g),
+  ]
+    .map(([, d]) => d!.match(/-?[\d.]+/g)!.map(Number))
+    .map((n) => ({ xs: n.filter((_, i) => i % 2 === 0), ys: n.filter((_, i) => i % 2 === 1) }))
+
+  it.each(bottles)('$name: a chalk mark on a drawer is whole or out of the picture', ({ spec }) => {
+    const { toCard } = pictureFraming(spec)
+    expect(chalkMarks).toHaveLength(2)
+    for (const { xs, ys } of chalkMarks) {
+      const from = toCard(Math.min(...xs) - 1, Math.min(...ys) - 1)
+      const to = toCard(Math.max(...xs) + 1, Math.max(...ys) + 1)
+      const whole = from.x >= 0 && to.x <= CARD_WIDTH && from.y >= 0 && to.y <= CARD_HEIGHT
+      const out = to.x <= 0 || from.x >= CARD_WIDTH || to.y <= 0 || from.y >= CARD_HEIGHT
+      expect(whole || out).toBe(true)
+    }
   })
 })

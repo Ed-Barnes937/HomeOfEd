@@ -4,6 +4,9 @@
 - **Date:** 2026-11-13
 - **Related:** [ADR 0077](0077-armoury-close-look.md) (the close look, its rise and wave),
   [ADR 0100](0100-armoury-sword-close-look-and-stage-rigs.md) (the shared rigs, `HeldItem`).
+  Built on by [ADR 0107](0107-armoury-bottle-generator.md) (the bottle that stands on them),
+  [ADR 0109](0109-armoury-potion-look.md) (its stages' light) and
+  [ADR 0111](0111-armoury-potion-close-look.md) (the hold yields to a finger; the slosh and the show).
 
 ## Context
 
