@@ -16,7 +16,7 @@ import {
 import { isForbiddenName } from './doNotUse.ts'
 import { EFFECTS } from './effects.ts'
 import { ingredient, INGREDIENTS, type IngredientId } from './ingredients.ts'
-import { mixPotion } from './mix.ts'
+import { mixPotion, type Recipe } from './mix.ts'
 import { potionPresets } from './presets.ts'
 import { potionSchema } from './potionSchema.ts'
 import { withPours } from './pours.ts'
@@ -27,6 +27,7 @@ const mixed = (pours: IngredientId[], rest: Params = {}) => potion(pours, { mixe
 const sentences = (text: string) => text.split(/[.!?]/).filter((s) => s.trim() !== '')
 const DRINKING =
   /\b(drink|drinks|drank|sip|sips|taste|tastes|tasty|swallow|gulp|gulps|yum|delicious|eat|eats)\b/i
+const LINE_CAP = 140
 const SHAPES = Object.keys(BOTTLES) as ShapeId[]
 const ids = INGREDIENTS.map((i) => i.id)
 
@@ -229,10 +230,62 @@ describe('potionTagLine', () => {
     )
   })
 
-  it('keeps the recipe on the card once mixed', () => {
+  it('says what the potion does once mixed', () => {
     expect(potionTagLine(mixed(['frogfizz', 'frogfizz', 'bluebell'], { shape: 'tall' }))).toBe(
-      'Mixed from Frogfizz, Frogfizz and Bluebell in a tall bottle.',
+      'One dab on each shoe and you float as high as the table, until a frog croaks. It leaves you with bouncy eyelashes.',
     )
+  })
+
+  it('keeps murky its own words', () => {
+    expect(potionTagLine(mixed(['frogfizz', 'bluebell', 'puffcap']))).toBe(
+      'Mixed from Frogfizz, Bluebell and Puffcap in a teardrop flask.',
+    )
+  })
+
+  it('gives a secret blend the same kind of line as any mixed potion', () => {
+    for (const blend of SECRET_BLENDS.filter(
+      (b) => mixPotion(b.recipe as Recipe).outcome !== 'murky',
+    ))
+      expect(potionTagLine(mixed([...blend.recipe]))).toMatch(/\. It leaves you with /)
+  })
+
+  describe('over every recipe', () => {
+    const recipes = multisets()
+    const outcomes = recipes.map((r) => ({ r, mix: mixPotion(r as unknown as Recipe) }))
+    const speaking = outcomes.filter(({ mix }) => mix.outcome !== 'murky')
+    const lineOf = (r: IngredientId[]) => potionTagLine(mixed(r))
+
+    it('has 165 recipes, 144 of them not murky', () => {
+      expect(recipes).toHaveLength(165)
+      expect(speaking).toHaveLength(144)
+    })
+
+    it('is the same in every pouring order', () => {
+      for (const { r } of speaking) {
+        const [a, b, c] = r as [IngredientId, IngredientId, IngredientId]
+        const orders = [
+          [a, b, c],
+          [a, c, b],
+          [b, a, c],
+          [b, c, a],
+          [c, a, b],
+          [c, b, a],
+        ]
+        for (const order of orders) expect(lineOf(order)).toBe(lineOf(r))
+      }
+    })
+
+    it('is different for each of the 144 recipes that are not murky', () => {
+      expect(new Set(speaking.map(({ r }) => lineOf(r))).size).toBe(144)
+    })
+
+    it('never mentions drinking, tasting or eating', () => {
+      for (const { r } of speaking) expect(lineOf(r)).not.toMatch(DRINKING)
+    })
+
+    it('stays within the cap', () => {
+      for (const { r } of speaking) expect(lineOf(r).length).toBeLessThanOrEqual(LINE_CAP)
+    })
   })
 })
 

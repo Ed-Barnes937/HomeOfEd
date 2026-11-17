@@ -347,7 +347,7 @@ room, a candle to its left, shelves of jars in the dark behind
 _Avoid_: Counter (the wand shop's), cauldron, lab.
 
 **Recipe card**:
-The potion shop's **tag**: a card on string beside the bottle, with the shop
+The potion shop's **tag**: a card beside the bottle, with the shop
 number, the name and the tag line. Before the mix its name lists the layers
-("Moonmilk, Rosehip and Starpetal"); after, it keeps the recipe in its tag line.
+("Moonmilk, Rosehip and Starpetal"); after, its tag line says what the potion does.
 _Avoid_: Recipe book, label (the paper on the bottle), ticket (the smithy's).

@@ -48,8 +48,6 @@ export interface BottleOnTable {
   widthMm: number
   /** Halfway along the shadow as drawn, across from the bottle's axis: its run fades out at the slot's edge. */
   shadowMidMm: number
-  /** Where the recipe card's string is tied, above the foot. */
-  tie: { heightMm: number; halfWidthMm: number }
   /** The light through the liquid, pooled on the table inside the shadow. */
   glow: { xMm: number; yMm: number; rxMm: number }
 }
@@ -58,11 +56,6 @@ export interface BottleOnTable {
 export function bottleOnTable(spec: PotionSpec): BottleOnTable {
   const outline = potionOutline(spec)
   const right = outline.glass.slice(0, outline.glass.length / 2)
-  const top = Math.max(...right.map(([, y]) => y))
-  const upper = right.filter(([, y]) => y > spec.heightMm * 0.45 && y < top - 4)
-  const narrowest = Math.min(...upper.map(([r]) => r))
-  const neck = upper.filter(([r]) => r <= narrowest + 0.6).map(([, y]) => y)
-  const tieAt = (Math.min(...neck) + Math.max(...neck)) / 2
   const cast = outline.glass.map(([x, y]): Pt => [
     x + y * SHADOW_RUN,
     -y * SHADOW_RISE + x * SHADOW_SPREAD * Math.min(1, y / 40),
@@ -79,7 +72,6 @@ export function bottleOnTable(spec: PotionSpec): BottleOnTable {
       (Math.min(...cast.map(([x]) => x)) +
         Math.min(Math.max(...cast.map(([x]) => x)), SLOT_MM - right[0]![0])) /
       2,
-    tie: { heightMm: tieAt, halfWidthMm: narrowest },
     glow: {
       xMm: pooled * SHADOW_RUN,
       yMm: -pooled * SHADOW_RISE,

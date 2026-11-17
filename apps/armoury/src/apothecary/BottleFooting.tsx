@@ -50,39 +50,3 @@ export function BottleShadow({
     </svg>
   )
 }
-
-/** The string round the neck, over the stage, its loose end hanging toward the card on the left. */
-export function NeckTie({ footing, className }: { footing: BottleOnTable; className?: string }) {
-  const { heightMm, halfWidthMm } = footing.tie
-  const y = -heightMm
-  const w = halfWidthMm + 0.5
-  const loops = [
-    `M${-w} ${y - 1.4} Q0 ${y + 1.6} ${w} ${y - 1.4}`,
-    `M${-w} ${y + 1.2} Q0 ${y + 4.2} ${w} ${y + 1.2}`,
-  ]
-  return (
-    <svg className={className} viewBox={VIEW} preserveAspectRatio="none" aria-hidden="true">
-      {loops.map((d) => (
-        <g key={d}>
-          <path d={d} stroke="rgba(30, 16, 12, 0.8)" strokeWidth="1.5" fill="none" />
-          <path d={d} stroke="var(--twine)" strokeWidth="1" fill="none" />
-          <path
-            d={d}
-            stroke="rgba(70, 46, 24, 0.7)"
-            strokeWidth="0.9"
-            strokeDasharray="0.4 1.2"
-            fill="none"
-          />
-        </g>
-      ))}
-      <circle
-        cx={-w + 0.6}
-        cy={y + 0.4}
-        r="1.4"
-        fill="var(--twine)"
-        stroke="rgba(30, 16, 12, 0.7)"
-        strokeWidth="0.4"
-      />
-    </svg>
-  )
-}
