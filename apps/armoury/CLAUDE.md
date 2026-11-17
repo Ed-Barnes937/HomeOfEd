@@ -153,6 +153,8 @@ scripts/ingredient-pictures.ts   cuts a three by three sheet of ingredient art
                       into public/ingredients/
 scripts/ingredient-placeholder-sheet.mjs   draws a test sheet to that layout
 public/ingredients/   the nine painted ingredient pictures on the picker's jars
+art/ingredients/      the sheet those nine were cut from, its prompt and reference
+                      pictures; source art, never served
 public/textures/      Poly Haven and ambientCG CC0 scans as webp: wood veneers
                       (wand); steel, leather, cord, weave (sword)
 public/hdri/          CC0 maps: studio (wand), smithy (sword), downsampled
