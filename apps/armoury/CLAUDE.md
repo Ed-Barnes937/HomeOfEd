@@ -200,6 +200,12 @@ and the potion shop are the worked examples.
   (`persistence/profileKeys.ts`) and its `ShopView` to `SharedView`'s `SHOPS`
   (`views.tsx`), and put its route under `PlayerView`. Share links and Keep
   follow `SHOP_PATHS` with nothing more.
+- **Ask the owner first,** in rounds, and record each answer in the epic's
+  `decisions.md`: what the child does to the item and what its flourish or
+  reveal is; the parts and the options of each; whether it lies level or stands;
+  the scene it waits in; the shop's name; which pictures the owner will paint;
+  what is out of scope; and what to do with an option that fails its gate twice
+  (cut it, or park it).
 - **Build order:** the generator first, judged in plain grey (`--clay`) before
   any material; then materials and light; then the scene art; the close look
   last.
@@ -207,9 +213,20 @@ and the potion shop are the worked examples.
   and light and have the owner pick from one contact sheet, before cutting
   tickets for the options. Without that, the smithy's steel took five gate
   rounds and its close look four.
+- **Painted art comes from the owner.** Write the prompt and a placeholder to
+  the same layout (`art/ingredients/` is the pattern); never generate or derive
+  a picture.
+- **Tickets:** each ends at one gate and fits about 80 tool calls. The wiring
+  (kind, registry, routes, save key, share field, shelf section, street door) is
+  mechanical and proved by tests; only form, materials, the scene and the close
+  look are judged by eye, and those are the tickets to keep small.
 - **Gates:** form, materials, the close look and the whole shop each pass a
   real-GPU gate, judged from shots beside the wand and the sword by someone
-  other than the builder. One gate per ticket.
+  other than the builder. One gate per ticket, one review per gate: its fix
+  round goes to a fresh builder and is checked against the reviewer's acceptance
+  list, not reviewed again. The whole-shop gate also looks once in WebKit
+  (`--browser=webkit`): the potion's effect lights vanished there and passed
+  every Chromium gate.
 
 ## Rules
 
